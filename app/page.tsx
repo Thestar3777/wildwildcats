@@ -17,8 +17,7 @@ type AppState =
   | "LOBBY"
   | "PLAYER_SELECT"
   | "INSTRUCTIONS"
-  | "DUEL_WAIT"
-  | "DUEL_RUN"
+  | "DUEL"
   | "RESULT"
 
 const CDN_SCRIPTS = [
@@ -59,7 +58,7 @@ export default function Home() {
     : gamePhase === "COUNTDOWN" ? "countdown"
     : "wait"
 
-  // Trigger flash/shake on DRAW, navigate to RESULT when game ends
+  // Trigger flash/shake on DRAW; navigate to RESULT when game ends
   useEffect(() => {
     if (prevPhaseRef.current === gamePhase) return
     prevPhaseRef.current = gamePhase
@@ -82,15 +81,22 @@ export default function Home() {
     }
   }, [gamePhase, players, reactionTime])
 
-  // Load CDN scripts and start hand tracking for each duel screen.
-  // Restarts on every state change so the new <video> ref is picked up
-  // after AnimatePresence swaps DUEL_WAIT → DUEL_RUN.
+  // Start tracking once when entering DUEL; keep it running for the full
+  // game sequence. Polls for videoRef because AnimatePresence mode="wait"
+  // delays mounting the video element after the state change.
+  const isDuel = state === "DUEL"
   useEffect(() => {
-    if (state !== "DUEL_WAIT" && state !== "DUEL_RUN") return
+    if (!isDuel) return
     let cancelled = false
 
     async function start() {
       for (const src of CDN_SCRIPTS) await loadScript(src)
+      // Wait up to 2 s for AnimatePresence to finish mounting the <video>
+      let attempts = 0
+      while (!videoRef.current && !cancelled && attempts < 20) {
+        await new Promise(r => setTimeout(r, 100))
+        attempts++
+      }
       if (cancelled || !videoRef.current) return
       cleanupTrackingRef.current = initHandTracking(
         videoRef.current,
@@ -108,9 +114,10 @@ export default function Home() {
       cleanupTrackingRef.current?.()
       cleanupTrackingRef.current = null
     }
-  }, [state, updateHand])
+  }, [isDuel, updateHand])
 
   const goLobby = () => setState("LOBBY")
+  const goToDuel = () => setState("DUEL")
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
@@ -139,25 +146,12 @@ export default function Home() {
 
         {state === "INSTRUCTIONS" && (
           <ScreenWrap key="instructions">
-            <InstructionsScreen players={players} onContinue={() => setState("DUEL_WAIT")} />
+            <InstructionsScreen players={players} onContinue={goToDuel} />
           </ScreenWrap>
         )}
 
-        {state === "DUEL_WAIT" && (
-          <ScreenWrap key="duel-wait">
-            <DuelScreen phase="wait" hand={hand} players={players} videoRef={videoRef}>
-              <button
-                onClick={() => { setState("DUEL_RUN"); startGame() }}
-                className="stamp-btn font-display text-2xl tracking-widest px-10 py-4 rounded-md border-2 border-ink/40"
-              >
-                <span className="relative z-[1]">START DUEL</span>
-              </button>
-            </DuelScreen>
-          </ScreenWrap>
-        )}
-
-        {state === "DUEL_RUN" && (
-          <ScreenWrap key="duel-run">
+        {state === "DUEL" && (
+          <ScreenWrap key="duel">
             <DuelScreen
               phase={duelPhase}
               countdown={countdown}
@@ -166,7 +160,16 @@ export default function Home() {
               hand={hand}
               players={players}
               videoRef={videoRef}
-            />
+            >
+              {(gamePhase === "WAITING" || gamePhase === "RESULT") && (
+                <button
+                  onClick={startGame}
+                  className="stamp-btn font-display text-2xl tracking-widest px-10 py-4 rounded-md border-2 border-ink/40"
+                >
+                  <span className="relative z-[1]">START DUEL</span>
+                </button>
+              )}
+            </DuelScreen>
           </ScreenWrap>
         )}
 
@@ -176,7 +179,7 @@ export default function Home() {
               reactionMs={reactionTime ?? 9999}
               reactionMs2={players === 2 ? reactionMs2 : undefined}
               players={players}
-              onPlayAgain={() => setState("DUEL_WAIT")}
+              onPlayAgain={goToDuel}
               onMainMenu={goLobby}
             />
           </ScreenWrap>

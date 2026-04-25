@@ -6,11 +6,15 @@ import { detectGesture } from "@/lib/gestureDetection"
 import { tickGameEngine, getInitialState, getDrawDelay } from "@/lib/gameEngine"
 
 const COUNTDOWN_SECONDS = 3
+// Ignore gestures for this many ticks after startGame() so MediaPipe
+// velocity spikes from hand re-acquisition don't trigger EARLY.
+const WARMUP_TICKS = 6
 
 export function useGame() {
   const [gameState, setGameState] = useState<GameState>(getInitialState)
   const handRef = useRef<HandData | null>(null)
   const drawSignalTimeRef = useRef<number | null>(null)
+  const warmupTicksRef = useRef(0)
 
   // Called every frame from handTracking
   const updateHand = useCallback((data: HandData | null) => {
@@ -23,6 +27,10 @@ export function useGame() {
 
     const id = setInterval(() => {
       setGameState(prev => {
+        if (warmupTicksRef.current > 0) {
+          warmupTicksRef.current--
+          return prev
+        }
         const gesture = detectGesture(handRef.current, prev.phase)
         if (prev.phase === "DRAW" && gesture === "FIRED") {
           playGunshot()
@@ -59,6 +67,7 @@ export function useGame() {
 
   const startGame = useCallback(() => {
     drawSignalTimeRef.current = null
+    warmupTicksRef.current = WARMUP_TICKS
     setGameState({ ...getInitialState(), phase: "COUNTDOWN", countdown: COUNTDOWN_SECONDS })
   }, [])
 
