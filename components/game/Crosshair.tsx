@@ -5,10 +5,11 @@ interface CrosshairProps {
   x: number;
   y: number;
   active?: boolean;
+  label?: string;
   className?: string;
 }
 
-export const Crosshair = ({ x, y, active = true, className }: CrosshairProps) => {
+export const Crosshair = ({ x, y, active = true, label, className }: CrosshairProps) => {
   if (!active) return null;
   return (
     <div
@@ -22,6 +23,11 @@ export const Crosshair = ({ x, y, active = true, className }: CrosshairProps) =>
         top: `${y * 100}%`,
       }}
     >
+      {label && (
+        <div className="absolute left-1/2 -translate-x-1/2 -top-7 font-display text-sm tracking-widest text-black drop-shadow-[0_0_4px_rgba(255,255,255,0.7)] whitespace-nowrap">
+          {label}
+        </div>
+      )}
       <svg width="84" height="84" viewBox="0 0 84 84" className="drop-shadow-[0_0_8px_hsl(var(--rust-glow)/0.8)]">
         <circle cx="42" cy="42" r="30" fill="none" stroke="hsl(var(--gold))" strokeWidth="2" strokeDasharray="6 4" />
         <circle cx="42" cy="42" r="18" fill="none" stroke="hsl(var(--rust-glow))" strokeWidth="1.5" />

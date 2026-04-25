@@ -163,21 +163,28 @@ export function initHandTracking(
       return
     }
 
-    // 2P: index 0 → P1, index 1 → P2. Each player's hand is identified by
-    // position in multiHandLandmarks (consistent frame-to-frame once locked on).
+    // 2P: assign by horizontal position — leftmost hand on screen → P1,
+    // rightmost → P2. MediaPipe's array order is unstable (it can swap when
+    // both hands are detected at similar confidence), but x-position is a
+    // physical anchor: as long as the players don't cross arms, the
+    // assignment is stable. Players know who's who by where they stand.
+    const sorted = [...landmarks].sort(
+      (a, b) => a[WRIST].x - b[WRIST].x
+    )
+
     let p1Data: HandData | null = null
     let p2Data: HandData | null = null
 
-    if (landmarks.length >= 1) {
-      const lm1 = landmarks[0]
+    if (sorted.length >= 1) {
+      const lm1 = sorted[0]
       const wrist1 = lm1[WRIST]
       const velocity1 = computeVelocity1(wrist1.y)
       const { isFiring: f1, wasHolstered: h1 } = checkGesture1(lm1)
       p1Data = { x: wrist1.x, y: wrist1.y, velocity: velocity1, isFiring: f1, wasHolstered: h1 }
     }
 
-    if (landmarks.length >= 2 && checkGesture2 && computeVelocity2) {
-      const lm2 = landmarks[1]
+    if (sorted.length >= 2 && checkGesture2 && computeVelocity2) {
+      const lm2 = sorted[1]
       const wrist2 = lm2[WRIST]
       const velocity2 = computeVelocity2(wrist2.y)
       const { isFiring: f2, wasHolstered: h2 } = checkGesture2(lm2)

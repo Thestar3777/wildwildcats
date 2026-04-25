@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, RefObject } from "react";
+import { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { DesertBackdrop } from "@/components/game/DesertBackdrop";
 import { WebcamFrame } from "@/components/game/WebcamFrame";
@@ -100,9 +100,20 @@ export const DuelScreen = ({
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,hsl(28_40%_18%),hsl(20_50%_6%))]" />
-          <Crosshair x={hand.x} y={hand.y} active={showCrosshair} />
+          <Crosshair
+            x={hand.x}
+            y={hand.y}
+            active={showCrosshair}
+            label={players === 2 ? "P1" : undefined}
+          />
           {players === 2 && hand2 && (
-            <Crosshair x={hand2.x} y={hand2.y} active={showCrosshair} className="hue-rotate-[200deg]" />
+            <Crosshair
+              x={hand2.x}
+              y={hand2.y}
+              active={showCrosshair}
+              label="P2"
+              className="hue-rotate-[200deg]"
+            />
           )}
           <StateText state={stateForOverlay} countdown={countdown} />
         </WebcamFrame>
