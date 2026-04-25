@@ -15,17 +15,21 @@ declare global {
 
 // Landmark indices used by MediaPipe Hands
 const WRIST = 0
+const THUMB_IP = 3       // thumb knuckle closest to tip
 const THUMB_TIP = 4
+const INDEX_MCP = 5      // index finger base knuckle
 const INDEX_TIP = 8
-const MIDDLE_TIP = 12
-
-// 0.12 is forgiving enough for a fast pinch without too many false positives
-const PINCH_THRESHOLD = 0.12
 
 // Velocity is scaled by 100 so gestureDetection thresholds land in the 8–15 range
 const VELOCITY_SCALE = 100
 
-// Hold isFiring=true for this many frames after a pinch so the 50ms game tick catches it
+// Index finger counts as "horizontal" when tip and base knuckle are within this Y distance
+const INDEX_HORIZ_TOLERANCE = 0.10
+// Index finger must be at least this long to count as extended (not curled)
+const INDEX_MIN_EXTENSION = 0.10
+// Thumb tip must drop this far past its IP joint to register as "fired"
+const THUMB_DOWN_MARGIN = 0.02
+// Hold isFiring=true for this many frames so the 50ms game tick always catches it
 const FIRE_LATCH_FRAMES = 4
 
 function makeVelocityTracker() {
@@ -41,20 +45,30 @@ function makeVelocityTracker() {
 
 function makeFireDetector() {
   let latchFrames = 0
-  return (landmarks: { x: number; y: number }[]): boolean => {
-    const thumb = landmarks[THUMB_TIP]
-    const index = landmarks[INDEX_TIP]
-    const middle = landmarks[MIDDLE_TIP]
+  return (lm: { x: number; y: number }[]): boolean => {
+    // Index horizontal: tip and base knuckle at the same height in frame
+    const indexVertDiff = Math.abs(lm[INDEX_TIP].y - lm[INDEX_MCP].y)
+    const indexExtension = Math.hypot(
+      lm[INDEX_TIP].x - lm[INDEX_MCP].x,
+      lm[INDEX_TIP].y - lm[INDEX_MCP].y
+    )
+    const indexGun = indexVertDiff < INDEX_HORIZ_TOLERANCE && indexExtension > INDEX_MIN_EXTENSION
 
-    // Primary: thumb-to-index. Backup: thumb-to-middle (natural for some people)
-    const distIndex = Math.hypot(thumb.x - index.x, thumb.y - index.y)
-    const distMiddle = Math.hypot(thumb.x - middle.x, thumb.y - middle.y)
+    // Thumb pulled down: tip drops past its IP joint toward the palm
+    const thumbFired = lm[THUMB_TIP].y > lm[THUMB_IP].y + THUMB_DOWN_MARGIN
 
-    console.log("[handTracking] pinch distances — index:", distIndex.toFixed(3), "middle:", distMiddle.toFixed(3))
+    console.log("[handTracking] gesture —", {
+      indexDiff: indexVertDiff.toFixed(3),
+      indexExt: indexExtension.toFixed(3),
+      thumbTipY: lm[THUMB_TIP].y.toFixed(3),
+      thumbIPY: lm[THUMB_IP].y.toFixed(3),
+      gunShape: indexGun,
+      thumbFired,
+    })
 
-    if (distIndex < PINCH_THRESHOLD || distMiddle < PINCH_THRESHOLD) {
+    if (indexGun && thumbFired) {
       latchFrames = FIRE_LATCH_FRAMES
-      console.log("[handTracking] FIRE detected — index:", distIndex.toFixed(3), "middle:", distMiddle.toFixed(3))
+      console.log("[handTracking] FIRE — gun shape + thumb down")
     } else if (latchFrames > 0) {
       latchFrames--
     }
