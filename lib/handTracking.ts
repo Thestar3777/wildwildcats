@@ -21,9 +21,9 @@ const INDEX_MCP = 5      // index finger base knuckle
 const INDEX_TIP = 8
 const MIDDLE_MCP = 9     // middle finger base knuckle
 const MIDDLE_TIP = 12
-const RING_PIP = 13      // ring finger proximal interphalangeal joint
+const RING_MCP = 13      // ring finger base knuckle
 const RING_TIP = 16
-const PINKY_PIP = 17     // pinky proximal interphalangeal joint
+const PINKY_MCP = 17     // pinky base knuckle
 const PINKY_TIP = 20
 
 // Velocity is scaled by 100 so gestureDetection thresholds land in the 8–15 range
@@ -34,9 +34,8 @@ const FIRE_LATCH_FRAMES = 4    // hold isFiring=true so the 50ms tick always cat
 const HOLSTER_HOLD_FRAMES = 3  // frames the holster pose must be held to arm the draw
 
 // 1P: western hip-draw (thumb up, finger at camera, ring+pinky curled)
-const HOLSTER_Y_MIN = 0.60       // wrist must be this low on screen (hip position)
 const THUMB_UP_MARGIN = 0.05     // thumbTip.y must be this far above wrist.y
-const CAMERA_POINT_Z = -0.05     // tip.z - mcp.z must be below this (negative = toward camera)
+const CAMERA_POINT_Z = -0.03     // tip.z - mcp.z must be below this (negative = toward camera)
 const TRIGGER_PULL_MARGIN = 0.04 // thumbTip.y must exceed thumbIP.y by this
 
 // 2P: flat hand parallel to screen
@@ -73,13 +72,15 @@ function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wa
       const indexZDelta = lm[INDEX_TIP].z - lm[INDEX_MCP].z
       const middleZDelta = lm[MIDDLE_TIP].z - lm[MIDDLE_MCP].z
 
-      // Holster pose: hip level + thumb up + finger aimed at camera + ring/pinky curled
-      const hipLevel = wrist.y > HOLSTER_Y_MIN
+      // Holster pose: thumb up + finger aimed at camera + ring/pinky curled down toward palm.
+      // hipLevel is not enforced here — the velocity-based DRAWING state in gestureDetection
+      // handles "came off hip". We only need the gun shape to arm the detector.
       const thumbUp = lm[THUMB_TIP].y < wrist.y - THUMB_UP_MARGIN
       const fingerAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
-      const ringCurled = lm[RING_TIP].y < lm[RING_PIP].y
-      const pinkyCurled = lm[PINKY_TIP].y < lm[PINKY_PIP].y
-      const inHolsterPose = hipLevel && thumbUp && fingerAtCamera && ringCurled && pinkyCurled
+      // Curled: tip drops below base knuckle (tip.y > mcp.y in screen coords where y=0 is top)
+      const ringCurled = lm[RING_TIP].y > lm[RING_MCP].y
+      const pinkyCurled = lm[PINKY_TIP].y > lm[PINKY_MCP].y
+      const inHolsterPose = thumbUp && fingerAtCamera && ringCurled && pinkyCurled
 
       if (inHolsterPose) {
         holsterHoldFrames = Math.min(holsterHoldFrames + 1, HOLSTER_HOLD_FRAMES)
@@ -88,15 +89,15 @@ function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wa
         holsterHoldFrames = 0
       }
 
-      // Fire pose: still aiming at camera + thumb trigger pulled + ring/pinky still curled + wasHolstered
+      // Fire pose: still aiming at camera + thumb trigger pulled + wasHolstered.
+      // Ring/pinky not re-checked here — they shift naturally when the thumb drops,
+      // and curl was already verified when the holster was armed.
       const stillAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
       const thumbFired = lm[THUMB_TIP].y > lm[THUMB_IP].y + TRIGGER_PULL_MARGIN
-      const ringStillCurled = lm[RING_TIP].y < lm[RING_PIP].y
-      const pinkyStillCurled = lm[PINKY_TIP].y < lm[PINKY_PIP].y
-      const firePose = wasHolstered && stillAtCamera && thumbFired && ringStillCurled && pinkyStillCurled
+      const firePose = wasHolstered && stillAtCamera && thumbFired
 
       console.log("[handTracking 1P] gesture —", {
-        hipLevel, thumbUp, fingerAtCamera, ringCurled, pinkyCurled,
+        thumbUp, fingerAtCamera, ringCurled, pinkyCurled,
         wasHolstered, thumbFired, firePose,
         indexZ: indexZDelta.toFixed(3), middleZ: middleZDelta.toFixed(3),
       })
@@ -119,8 +120,8 @@ function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wa
     // Flat hand: all finger tips at approximately the same Y as their MCPs/PIPs
     const flatIndex = Math.abs(lm[INDEX_TIP].y - lm[INDEX_MCP].y) < FLAT_HAND_TOLERANCE
     const flatMiddle = Math.abs(lm[MIDDLE_TIP].y - lm[MIDDLE_MCP].y) < FLAT_HAND_TOLERANCE
-    const flatRing = Math.abs(lm[RING_TIP].y - lm[RING_PIP].y) < FLAT_HAND_TOLERANCE
-    const flatPinky = Math.abs(lm[PINKY_TIP].y - lm[PINKY_PIP].y) < FLAT_HAND_TOLERANCE
+    const flatRing = Math.abs(lm[RING_TIP].y - lm[RING_MCP].y) < FLAT_HAND_TOLERANCE
+    const flatPinky = Math.abs(lm[PINKY_TIP].y - lm[PINKY_MCP].y) < FLAT_HAND_TOLERANCE
     const flatHand = flatIndex && flatMiddle && flatRing && flatPinky
 
     // Not pointing at camera: fingers parallel to screen (z delta near zero or positive)
