@@ -24,6 +24,9 @@ export function useGame() {
     const id = setInterval(() => {
       setGameState(prev => {
         const gesture = detectGesture(handRef.current, prev.phase)
+        if (prev.phase === "DRAW" && gesture === "FIRED") {
+          playGunshot()
+        }
         return tickGameEngine(prev, gesture, drawSignalTimeRef.current, Date.now())
       })
     }, 50)
@@ -58,6 +61,11 @@ export function useGame() {
     drawSignalTimeRef.current = null
     setGameState({ ...getInitialState(), phase: "COUNTDOWN", countdown: COUNTDOWN_SECONDS })
   }, [])
+
+  const playGunshot = () => {
+  const audio = new Audio("/sounds/33276__mastafx__shot.wav")
+  audio.play()
+  }
 
   return {
     phase: gameState.phase,
