@@ -1,26 +1,292 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Rye&family=Special+Elite&family=Smokum&display=swap');
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ==========================================================================
+   Wild West Quick Draw — design tokens. All colors in HSL.
+   ========================================================================== */
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 28 35% 8%;
+    --foreground: 38 55% 82%;
+
+    --parchment: 38 60% 78%;
+    --parchment-dark: 32 45% 62%;
+    --parchment-edge: 25 40% 28%;
+
+    --ink: 24 50% 14%;
+    --ink-soft: 25 40% 22%;
+
+    --rust: 18 75% 42%;
+    --rust-glow: 22 90% 55%;
+    --gold: 42 85% 52%;
+    --gold-soft: 40 70% 65%;
+    --blood: 8 70% 38%;
+
+    --leather: 22 45% 25%;
+    --leather-dark: 20 50% 14%;
+    --wood: 24 40% 22%;
+    --wood-dark: 22 45% 12%;
+
+    --card: 32 40% 75%;
+    --card-foreground: 24 50% 14%;
+    --popover: 32 40% 75%;
+    --popover-foreground: 24 50% 14%;
+    --primary: 18 75% 42%;
+    --primary-foreground: 38 60% 92%;
+    --secondary: 22 45% 25%;
+    --secondary-foreground: 38 60% 88%;
+    --muted: 28 30% 18%;
+    --muted-foreground: 35 30% 60%;
+    --accent: 42 85% 52%;
+    --accent-foreground: 24 50% 14%;
+    --destructive: 8 70% 38%;
+    --destructive-foreground: 38 60% 92%;
+    --border: 25 40% 28%;
+    --input: 25 40% 28%;
+    --ring: 42 85% 52%;
+    --radius: 0.25rem;
+
+    --gradient-parchment: radial-gradient(ellipse at center,
+      hsl(38 65% 80%) 0%,
+      hsl(35 55% 70%) 40%,
+      hsl(28 45% 50%) 80%,
+      hsl(22 50% 30%) 100%);
+    --gradient-leather: linear-gradient(145deg,
+      hsl(22 50% 30%) 0%,
+      hsl(20 55% 18%) 100%);
+    --gradient-wood: repeating-linear-gradient(90deg,
+      hsl(24 45% 22%) 0px,
+      hsl(22 50% 18%) 3px,
+      hsl(26 40% 26%) 7px,
+      hsl(20 45% 16%) 11px);
+    --gradient-gold-stamp: radial-gradient(circle at 30% 30%,
+      hsl(48 95% 65%) 0%,
+      hsl(38 90% 48%) 50%,
+      hsl(28 80% 35%) 100%);
+    --gradient-bg: radial-gradient(ellipse at top,
+      hsl(28 40% 14%) 0%,
+      hsl(24 45% 8%) 50%,
+      hsl(20 50% 4%) 100%);
+
+    --shadow-poster: 0 25px 50px -12px hsl(0 0% 0% / 0.7),
+                     0 0 0 1px hsl(25 40% 28% / 0.5),
+                     inset 0 0 60px hsl(22 50% 30% / 0.4);
+    --shadow-stamp: 0 8px 0 hsl(20 50% 14%),
+                    0 12px 24px hsl(0 0% 0% / 0.6),
+                    inset 0 2px 0 hsl(48 95% 70% / 0.5),
+                    inset 0 -4px 8px hsl(20 60% 20% / 0.6);
+    --shadow-frame: 0 0 0 6px hsl(22 50% 18%),
+                    0 0 0 8px hsl(28 30% 8%),
+                    0 0 0 14px hsl(22 50% 18%),
+                    0 30px 60px hsl(0 0% 0% / 0.8);
+    --shadow-telegram: 0 20px 40px hsl(0 0% 0% / 0.6),
+                       0 0 0 1px hsl(25 40% 28%),
+                       inset 0 0 80px hsl(22 50% 30% / 0.3);
+
+    --filter-sepia: sepia(0.7) saturate(1.4) hue-rotate(-10deg) contrast(1.1) brightness(0.9);
+    --tilt-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    color: hsl(var(--foreground));
+    background: var(--gradient-bg);
+    background-attachment: fixed;
+    font-family: 'Special Elite', 'Courier New', monospace;
+    min-height: 100vh;
+  }
 }
+
+@layer components {
+  .paper-texture {
+    background-image:
+      radial-gradient(circle at 20% 30%, hsl(22 50% 30% / 0.35) 0%, transparent 35%),
+      radial-gradient(circle at 80% 70%, hsl(20 55% 22% / 0.4) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, hsl(38 55% 75% / 0.3) 0%, transparent 60%),
+      radial-gradient(circle at 10% 90%, hsl(18 60% 28% / 0.45) 0%, transparent 30%),
+      radial-gradient(circle at 90% 10%, hsl(22 50% 26% / 0.4) 0%, transparent 35%),
+      var(--gradient-parchment);
+    position: relative;
+  }
+  .paper-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0, transparent 2px, hsl(22 50% 25% / 0.04) 2px, hsl(22 50% 25% / 0.04) 3px),
+      repeating-linear-gradient(90deg, transparent 0, transparent 2px, hsl(22 50% 25% / 0.04) 2px, hsl(22 50% 25% / 0.04) 3px);
+    pointer-events: none;
+    mix-blend-mode: multiply;
+  }
+  .paper-texture::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, transparent 50%, hsl(22 60% 18% / 0.6) 100%);
+    pointer-events: none;
+  }
+
+  .torn-edges {
+    clip-path: polygon(
+      0% 3%, 4% 0%, 12% 2%, 22% 0%, 35% 3%, 48% 1%, 62% 2%, 75% 0%, 88% 3%, 96% 1%, 100% 4%,
+      99% 18%, 100% 32%, 98% 48%, 100% 64%, 99% 82%, 100% 96%,
+      96% 100%, 82% 98%, 68% 100%, 52% 99%, 38% 100%, 22% 98%, 8% 100%, 2% 99%, 0% 96%,
+      2% 82%, 0% 65%, 1% 48%, 0% 32%, 2% 18%
+    );
+  }
+
+  .wood-frame {
+    background: var(--gradient-wood);
+    box-shadow: var(--shadow-frame);
+    position: relative;
+  }
+  .wood-frame::before,
+  .wood-frame::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%,
+      hsl(35 25% 70%) 0%,
+      hsl(25 30% 45%) 50%,
+      hsl(20 40% 20%) 100%);
+    box-shadow: inset 0 -2px 3px hsl(0 0% 0% / 0.6),
+                0 1px 2px hsl(0 0% 0% / 0.8);
+    z-index: 2;
+  }
+  .wood-frame::before { top: 8px; left: 8px; }
+  .wood-frame::after { top: 8px; right: 8px; }
+  .wood-frame > .rivet-bl { position: absolute; bottom: 8px; left: 8px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, hsl(35 25% 70%), hsl(25 30% 45%) 50%, hsl(20 40% 20%));
+    box-shadow: inset 0 -2px 3px hsl(0 0% 0% / 0.6), 0 1px 2px hsl(0 0% 0% / 0.8);
+    z-index: 2; }
+  .wood-frame > .rivet-br { position: absolute; bottom: 8px; right: 8px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, hsl(35 25% 70%), hsl(25 30% 45%) 50%, hsl(20 40% 20%));
+    box-shadow: inset 0 -2px 3px hsl(0 0% 0% / 0.6), 0 1px 2px hsl(0 0% 0% / 0.8);
+    z-index: 2; }
+
+  .filter-sepia-western { filter: var(--filter-sepia); }
+
+  .stamp-btn {
+    background: var(--gradient-gold-stamp);
+    box-shadow: var(--shadow-stamp);
+    color: hsl(var(--ink));
+    text-shadow: 0 1px 0 hsl(48 95% 75% / 0.5);
+    transition: transform 0.25s var(--tilt-bounce), box-shadow 0.25s ease;
+    position: relative;
+  }
+  .stamp-btn::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 2px dashed hsl(20 60% 20% / 0.5);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .stamp-btn:hover { transform: rotate(-3deg) scale(1.05) translateY(-2px); }
+  .stamp-btn:active {
+    transform: rotate(-1deg) scale(0.98) translateY(4px);
+    box-shadow: 0 2px 0 hsl(20 50% 14%), 0 4px 8px hsl(0 0% 0% / 0.6),
+                inset 0 2px 0 hsl(48 95% 70% / 0.3),
+                inset 0 -2px 4px hsl(20 60% 20% / 0.6);
+  }
+
+  .telegram-card {
+    background: var(--gradient-parchment);
+    box-shadow: var(--shadow-telegram);
+    color: hsl(var(--ink));
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: 'Rye', 'Georgia', serif; }
+  .font-stamp { font-family: 'Smokum', 'Georgia', serif; }
+  .font-typewriter { font-family: 'Special Elite', 'Courier New', monospace; }
+
+  .text-shadow-stamp {
+    text-shadow:
+      2px 2px 0 hsl(20 60% 20% / 0.4),
+      4px 4px 8px hsl(0 0% 0% / 0.5);
+  }
+  .text-shadow-ink {
+    text-shadow: 1px 1px 0 hsl(22 60% 30% / 0.4);
+  }
+}
+
+/* ============ Animations ============ */
+@keyframes camera-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  10% { transform: translate(-8px, -6px) rotate(-1deg); }
+  20% { transform: translate(7px, 5px) rotate(1deg); }
+  30% { transform: translate(-6px, 4px) rotate(-0.5deg); }
+  40% { transform: translate(5px, -7px) rotate(0.8deg); }
+  50% { transform: translate(-4px, 3px) rotate(-0.6deg); }
+  60% { transform: translate(6px, -2px) rotate(0.4deg); }
+  70% { transform: translate(-3px, 5px) rotate(-0.3deg); }
+  80% { transform: translate(4px, -3px) rotate(0.2deg); }
+  90% { transform: translate(-2px, 2px) rotate(-0.1deg); }
+}
+.animate-camera-shake { animation: camera-shake 0.6s cubic-bezier(.36,.07,.19,.97) both; }
+
+@keyframes flash-screen {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-flash { animation: flash-screen 0.45s ease-out forwards; }
+
+@keyframes zoom-stamp {
+  0% { transform: scale(3) rotate(-15deg); opacity: 0; filter: blur(8px); }
+  60% { transform: scale(0.9) rotate(2deg); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.animate-zoom-stamp { animation: zoom-stamp 0.5s var(--tilt-bounce) both; }
+
+@keyframes draw-burst {
+  0% { transform: scale(0.3); opacity: 0; letter-spacing: 0.5em; }
+  40% { transform: scale(1.3); opacity: 1; letter-spacing: 0.05em; }
+  100% { transform: scale(1); opacity: 1; letter-spacing: 0.1em; }
+}
+.animate-draw-burst { animation: draw-burst 0.4s ease-out both; }
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.5s ease-out both; }
+
+@keyframes slow-sway {
+  0%, 100% { transform: rotate(-1.5deg); }
+  50% { transform: rotate(1.5deg); }
+}
+.animate-sway { animation: slow-sway 6s ease-in-out infinite; }
+
+@keyframes crosshair-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+.animate-crosshair { animation: crosshair-pulse 1.2s ease-in-out infinite; }
+
+@keyframes ticker {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.animate-ticker { animation: ticker 1s ease-in-out infinite; }
+
+@keyframes tumble-roll {
+  0% { transform: translateX(-10vw) translateY(0) rotate(0deg); }
+  50% { transform: translateX(50vw) translateY(-12px) rotate(720deg); }
+  100% { transform: translateX(110vw) translateY(0) rotate(1440deg); }
+}
+.animate-tumble-slow { left: 0; animation: tumble-roll 22s linear infinite; }
+.animate-tumble-mid  { left: 0; animation: tumble-roll 14s linear infinite; animation-delay: -6s; }
+.animate-tumble-fast { left: 0; animation: tumble-roll 10s linear infinite; animation-delay: -3s; }
