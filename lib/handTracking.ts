@@ -31,12 +31,12 @@ const VELOCITY_SCALE = 100
 
 // Shared
 const FIRE_LATCH_FRAMES = 4    // hold isFiring=true so the 50ms tick always catches it
-const HOLSTER_HOLD_FRAMES = 3  // frames the holster pose must be held to arm the draw
+const HOLSTER_HOLD_FRAMES = 1  // frames the holster pose must be held to arm the draw
 
 // 1P: western hip-draw (thumb up, finger at camera, ring+pinky curled)
-const THUMB_UP_MARGIN = 0.05     // thumbTip.y must be this far above wrist.y
+const THUMB_UP_MARGIN = 0.03     // thumbTip.y must be this far above wrist.y
 const CAMERA_POINT_Z = -0.03     // tip.z - mcp.z must be below this (negative = toward camera)
-const TRIGGER_PULL_MARGIN = 0.04 // thumbTip.y must exceed thumbIP.y by this
+const TRIGGER_PULL_MARGIN = 0.02 // thumbTip.y must exceed thumbIP.y by this
 
 // 2P: flat hand parallel to screen
 const HOLSTER_Y_MIN_2P = 0.55   // wrist must be this low on screen to be "holstered"
@@ -80,7 +80,9 @@ function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wa
       // Curled: tip drops below base knuckle (tip.y > mcp.y in screen coords where y=0 is top)
       const ringCurled = lm[RING_TIP].y > lm[RING_MCP].y
       const pinkyCurled = lm[PINKY_TIP].y > lm[PINKY_MCP].y
-      const inHolsterPose = thumbUp && fingerAtCamera && ringCurled && pinkyCurled
+      // Ring/pinky Y-curl checks are unreliable when the fist faces the camera
+      // (tips collapse behind MCPs in 2D). Thumb-up + camera-aim is sufficient.
+      const inHolsterPose = thumbUp && fingerAtCamera
 
       if (inHolsterPose) {
         holsterHoldFrames = Math.min(holsterHoldFrames + 1, HOLSTER_HOLD_FRAMES)
