@@ -36,7 +36,12 @@ const HOLSTER_HOLD_FRAMES = 1  // frames the holster pose must be held to arm th
 // 1P: western hip-draw (thumb up, finger at camera, ring+pinky curled)
 const THUMB_UP_MARGIN = 0.03     // thumbTip.y must be this far above wrist.y
 const CAMERA_POINT_Z = -0.03     // tip.z - mcp.z must be below this (negative = toward camera)
-const TRIGGER_PULL_MARGIN = 0.02 // thumbTip.y must exceed thumbIP.y by this
+// Trigger pull: thumb drop is detected as soon as the tip falls to within
+// 0.02 of the IP joint. A negative margin means we fire BEFORE the tip
+// passes the IP — the rest pose sits at Δy ≈ -0.06 to -0.09, so any meaningful
+// drop crosses this line. Was +0.02 (required full pass-through), which only
+// triggered on extreme thumb drops and made fire feel laggy.
+const TRIGGER_PULL_MARGIN = -0.02
 
 // 2P: flat hand parallel to screen
 const HOLSTER_Y_MIN_2P = 0.55   // wrist must be this low on screen to be "holstered"
