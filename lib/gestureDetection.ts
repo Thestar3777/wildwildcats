@@ -1,29 +1,31 @@
-// Converts raw HandData into a discrete GestureState.
-// The game engine reads this output to drive state transitions.
+// Gesture Detection
+// Translates HandData into GestureState for the game engine
+// Owner: Xavier
 
-import type { HandData, GestureState } from "@/types/game"
+import { HandData, GestureState, GamePhase } from "@/types/game"
 
-// Velocity thresholds (units are scaled in handTracking: ~pixels/frame * 100)
-const DRAW_VELOCITY_THRESHOLD = 15  // upward snap to trigger DRAWING
-const EARLY_VELOCITY_THRESHOLD = 8  // smaller unintentional movement = EARLY
+// Thresholds matched to Cameron's handTracking velocity scale (wrist Y-delta × 100)
+export const DRAW_VELOCITY_THRESHOLD = 15
+export const EARLY_VELOCITY_THRESHOLD = 8
 
 export function detectGesture(
   hand: HandData | null,
-  currentGesture: GestureState,
-  phase: "WAITING" | "COUNTDOWN" | "DRAW" | "RESULT"
+  phase: GamePhase
 ): GestureState {
+  // No hand in frame = idle
   if (!hand) return "IDLE"
 
-  const movingUp = hand.velocity > EARLY_VELOCITY_THRESHOLD
+  // Fire gesture wins over everything (handTracking latches this for ~4 frames)
+  if (hand.isFiring) return "FIRED"
 
-  // During countdown any movement is an early draw
-  if (phase === "COUNTDOWN" && movingUp) return "EARLY"
+  // Movement during countdown = cheating
+  if (phase === "COUNTDOWN" && hand.velocity > EARLY_VELOCITY_THRESHOLD) {
+    return "EARLY"
+  }
 
-  // After DRAW signal: fast upward movement = drawing
-  if (phase === "DRAW") {
-    if (currentGesture === "FIRED") return "FIRED" // latch — stay fired
-    if (hand.velocity > DRAW_VELOCITY_THRESHOLD) return "DRAWING"
-    if (currentGesture === "DRAWING" && hand.isFiring) return "FIRED"
+  // Fast upward movement during draw phase = legit draw
+  if (phase === "DRAW" && hand.velocity > DRAW_VELOCITY_THRESHOLD) {
+    return "DRAWING"
   }
 
   return "IDLE"
