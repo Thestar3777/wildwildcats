@@ -8,6 +8,9 @@ import { PlayerSelectScreen } from "@/components/screens/PlayerSelectScreen"
 import { InstructionsScreen } from "@/components/screens/InstructionsScreen"
 import { DuelScreen, type DuelPhase } from "@/components/screens/DuelScreen"
 import { ResultScreen } from "@/components/screens/ResultScreen"
+import { useGame } from "@/hooks/useGame"
+import { initHandTracking } from "@/lib/handTracking"
+import type { HandData } from "@/types/game"
 
 type AppState =
   | "INTRO"
@@ -18,81 +21,96 @@ type AppState =
   | "DUEL_RUN"
   | "RESULT"
 
+const CDN_SCRIPTS = [
+  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js",
+  "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js",
+]
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
+    const s = document.createElement("script")
+    s.src = src
+    s.crossOrigin = "anonymous"
+    s.onload = () => resolve()
+    s.onerror = reject
+    document.head.appendChild(s)
+  })
+}
+
 export default function Home() {
   const [state, setState] = useState<AppState>("INTRO")
   const [players, setPlayers] = useState<1 | 2>(1)
-  const [duelPhase, setDuelPhase] = useState<DuelPhase>("wait")
-  const [countdown, setCountdown] = useState(3)
   const [flash, setFlash] = useState(false)
   const [shake, setShake] = useState(false)
-  const [reactionMs, setReactionMs] = useState<number>(0)
   const [reactionMs2, setReactionMs2] = useState<number>(0)
   const [hand, setHand] = useState({ x: 0.5, y: 0.5 })
 
-  const timersRef = useRef<number[]>([])
-  const drawAtRef = useRef<number>(0)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const cleanupTrackingRef = useRef<(() => void) | null>(null)
+  const prevPhaseRef = useRef<string>("")
 
-  // Mock hand drift animation
+  const { phase: gamePhase, countdown, reactionTime, startGame, updateHand } = useGame()
+
+  // Map useGame phase → DuelScreen phase
+  const duelPhase: DuelPhase =
+    gamePhase === "DRAW" ? "draw"
+    : gamePhase === "COUNTDOWN" && countdown === 0 ? "steady"
+    : gamePhase === "COUNTDOWN" ? "countdown"
+    : "wait"
+
+  // Trigger flash/shake on DRAW, navigate to RESULT when game ends
   useEffect(() => {
-    let raf = 0
-    const start = performance.now()
-    const tick = (t: number) => {
-      const dt = (t - start) / 1000
-      setHand({
-        x: 0.5 + Math.sin(dt * 0.7) * 0.18,
-        y: 0.55 + Math.cos(dt * 0.5) * 0.12,
-      })
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+    if (prevPhaseRef.current === gamePhase) return
+    prevPhaseRef.current = gamePhase
 
-  const clearTimers = () => {
-    timersRef.current.forEach((id) => window.clearTimeout(id))
-    timersRef.current = []
-  }
-
-  useEffect(() => () => clearTimers(), [])
-
-  const startDuelSequence = () => {
-    clearTimers()
-    setState("DUEL_RUN")
-    setDuelPhase("countdown")
-    setCountdown(3)
-
-    const t1 = window.setTimeout(() => setCountdown(2), 1000)
-    const t2 = window.setTimeout(() => setCountdown(1), 2000)
-    const t3 = window.setTimeout(() => setDuelPhase("steady"), 3000)
-    const t4 = window.setTimeout(() => {
-      setDuelPhase("draw")
+    if (gamePhase === "DRAW") {
       setFlash(true)
       setShake(true)
-      drawAtRef.current = performance.now()
       window.setTimeout(() => setFlash(false), 120)
       window.setTimeout(() => setShake(false), 600)
+    }
 
-      const t5 = window.setTimeout(() => {
-        const mocked = 200 + Math.floor(Math.random() * 450)
-        setReactionMs(mocked)
-        if (players === 2) {
-          let mocked2 = 200 + Math.floor(Math.random() * 450)
-          if (mocked2 === mocked) mocked2 += 1
-          setReactionMs2(mocked2)
+    if (gamePhase === "RESULT") {
+      if (players === 2) {
+        const r = reactionTime ?? 9999
+        let m2 = 200 + Math.floor(Math.random() * 450)
+        if (m2 === r) m2 += 1
+        setReactionMs2(m2)
+      }
+      setState("RESULT")
+    }
+  }, [gamePhase, players, reactionTime])
+
+  // Load CDN scripts and start hand tracking for each duel screen.
+  // Restarts on every state change so the new <video> ref is picked up
+  // after AnimatePresence swaps DUEL_WAIT → DUEL_RUN.
+  useEffect(() => {
+    if (state !== "DUEL_WAIT" && state !== "DUEL_RUN") return
+    let cancelled = false
+
+    async function start() {
+      for (const src of CDN_SCRIPTS) await loadScript(src)
+      if (cancelled || !videoRef.current) return
+      cleanupTrackingRef.current = initHandTracking(
+        videoRef.current,
+        (data: HandData | null) => {
+          updateHand(data)
+          if (data) setHand({ x: data.x, y: data.y })
         }
-        setState("RESULT")
-      }, 800 + Math.random() * 600)
-      timersRef.current.push(t5)
-    }, 3000 + 1500 + Math.random() * 2500)
-    timersRef.current.push(t1, t2, t3, t4)
-  }
+      )
+    }
 
-  const goLobby = () => {
-    clearTimers()
-    setState("LOBBY")
-    setDuelPhase("wait")
-  }
+    start()
+
+    return () => {
+      cancelled = true
+      cleanupTrackingRef.current?.()
+      cleanupTrackingRef.current = null
+    }
+  }, [state, updateHand])
+
+  const goLobby = () => setState("LOBBY")
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
@@ -104,14 +122,8 @@ export default function Home() {
         {state === "LOBBY" && (
           <ScreenWrap key="lobby">
             <LobbyScreen
-              onOnePlayer={() => {
-                setPlayers(1)
-                setState("INSTRUCTIONS")
-              }}
-              onTwoPlayers={() => {
-                setPlayers(2)
-                setState("PLAYER_SELECT")
-              }}
+              onOnePlayer={() => { setPlayers(1); setState("INSTRUCTIONS") }}
+              onTwoPlayers={() => { setPlayers(2); setState("PLAYER_SELECT") }}
             />
           </ScreenWrap>
         )}
@@ -135,7 +147,7 @@ export default function Home() {
           <ScreenWrap key="duel-wait">
             <DuelScreen phase="wait" hand={hand} players={players} videoRef={videoRef}>
               <button
-                onClick={startDuelSequence}
+                onClick={() => { setState("DUEL_RUN"); startGame() }}
                 className="stamp-btn font-display text-2xl tracking-widest px-10 py-4 rounded-md border-2 border-ink/40"
               >
                 <span className="relative z-[1]">START DUEL</span>
@@ -161,7 +173,7 @@ export default function Home() {
         {state === "RESULT" && (
           <ScreenWrap key="result">
             <ResultScreen
-              reactionMs={reactionMs}
+              reactionMs={reactionTime ?? 9999}
               reactionMs2={players === 2 ? reactionMs2 : undefined}
               players={players}
               onPlayAgain={() => setState("DUEL_WAIT")}
@@ -176,7 +188,6 @@ export default function Home() {
           {players === 2 ? "★ TWO-GUN MODE ★" : "★ LONE WOLF MODE ★"}
         </div>
       )}
-
     </main>
   )
 }
