@@ -16,6 +16,7 @@ export function getInitialState(): GameState {
     countdown: COUNTDOWN_SECONDS,
     gesture: "IDLE",
     reactionTime: null,
+    reactionTime2: null,
     failed: false,
   }
 }

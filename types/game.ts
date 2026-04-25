@@ -5,6 +5,7 @@ export interface HandData {
   y: number        // normalized 0–1 (vertical, 0 = top)
   velocity: number // pixels/frame upward movement (positive = moving up)
   isFiring: boolean
+  wasHolstered: boolean // detector confirmed holster pose before this draw
 }
 
 export type GestureState = "IDLE" | "DRAWING" | "FIRED" | "EARLY"
@@ -15,6 +16,7 @@ export interface GameState {
   phase: GamePhase
   countdown: number       // seconds remaining
   gesture: GestureState
-  reactionTime: number | null   // ms from DRAW signal to FIRED
+  reactionTime: number | null   // ms from DRAW signal to FIRED (P1)
+  reactionTime2: number | null  // ms from DRAW signal to FIRED (P2, 2P mode only)
   failed: boolean               // true if moved early
 }

@@ -105,7 +105,7 @@ const HeadToHeadCard = ({ p1, p2 }: { p1: number; p2: number }) => {
         PLAYER {winner} WINS!
       </div>
       <div className="text-sm text-ink-soft italic text-center mb-5">
-        Beat the other outlaw by {gap} ms.
+        {gap >= 9000 ? "Left the other outlaw in the dust." : `Beat the other outlaw by ${gap} ms.`}
       </div>
 
       <div className="grid grid-cols-2 gap-4 border-y border-dashed border-ink/40 py-4">
@@ -136,14 +136,18 @@ const PlayerSlot = ({
   ms: number;
   winner: boolean;
   align?: "left" | "right";
-}) => (
-  <div className={align === "right" ? "text-right" : ""}>
-    <div className="text-[10px] uppercase tracking-widest text-ink-soft">{label}</div>
-    <div className={`font-display text-3xl ${winner ? "text-blood" : "text-ink"}`}>
-      {ms} <span className="text-base text-ink-soft">ms</span>
+}) => {
+  const dnf = ms >= 9999;
+  return (
+    <div className={align === "right" ? "text-right" : ""}>
+      <div className="text-[10px] uppercase tracking-widest text-ink-soft">{label}</div>
+      <div className={`font-display text-3xl ${winner ? "text-blood" : "text-ink"}`}>
+        {dnf ? "—" : ms}
+        {!dnf && <span className="text-base text-ink-soft"> ms</span>}
+      </div>
+      <div className="text-[10px] uppercase tracking-widest text-ink-soft mt-1">
+        {winner ? "★ WINNER ★" : dnf ? "Too slow" : "Eats dust"}
+      </div>
     </div>
-    <div className="text-[10px] uppercase tracking-widest text-ink-soft mt-1">
-      {winner ? "★ WINNER ★" : "Eats dust"}
-    </div>
-  </div>
-);
+  );
+};

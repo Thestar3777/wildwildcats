@@ -42,14 +42,13 @@ export default function Home() {
   const [players, setPlayers] = useState<1 | 2>(1)
   const [flash, setFlash] = useState(false)
   const [shake, setShake] = useState(false)
-  const [reactionMs2, setReactionMs2] = useState<number>(0)
   const [hand, setHand] = useState({ x: 0.5, y: 0.5 })
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const cleanupTrackingRef = useRef<(() => void) | null>(null)
   const prevPhaseRef = useRef<string>("")
 
-  const { phase: gamePhase, countdown, reactionTime, startGame, updateHand } = useGame()
+  const { phase: gamePhase, countdown, reactionTime, reactionTime2, startGame, updateHand, updateHand2 } = useGame(players)
 
   // Map useGame phase → DuelScreen phase
   const duelPhase: DuelPhase =
@@ -71,15 +70,9 @@ export default function Home() {
     }
 
     if (gamePhase === "RESULT") {
-      if (players === 2) {
-        const r = reactionTime ?? 9999
-        let m2 = 200 + Math.floor(Math.random() * 450)
-        if (m2 === r) m2 += 1
-        setReactionMs2(m2)
-      }
       setState("RESULT")
     }
-  }, [gamePhase, players, reactionTime])
+  }, [gamePhase])
 
   // Start tracking once when entering DUEL; keep it running for the full
   // game sequence. Polls for videoRef because AnimatePresence mode="wait"
@@ -98,13 +91,26 @@ export default function Home() {
         attempts++
       }
       if (cancelled || !videoRef.current) return
-      cleanupTrackingRef.current = initHandTracking(
-        videoRef.current,
-        (data: HandData | null) => {
-          updateHand(data)
-          if (data) setHand({ x: data.x, y: data.y })
-        }
-      )
+      if (players === 2) {
+        cleanupTrackingRef.current = initHandTracking(
+          videoRef.current,
+          (p1: HandData | null, p2: HandData | null) => {
+            updateHand(p1)
+            updateHand2(p2)
+            if (p1) setHand({ x: p1.x, y: p1.y })
+          },
+          2
+        )
+      } else {
+        cleanupTrackingRef.current = initHandTracking(
+          videoRef.current,
+          (data: HandData | null) => {
+            updateHand(data)
+            if (data) setHand({ x: data.x, y: data.y })
+          },
+          1
+        )
+      }
     }
 
     start()
@@ -114,7 +120,7 @@ export default function Home() {
       cleanupTrackingRef.current?.()
       cleanupTrackingRef.current = null
     }
-  }, [isDuel, updateHand])
+  }, [isDuel, players, updateHand, updateHand2])
 
   const goLobby = () => setState("LOBBY")
   const goToDuel = () => setState("DUEL")
@@ -177,7 +183,7 @@ export default function Home() {
           <ScreenWrap key="result">
             <ResultScreen
               reactionMs={reactionTime ?? 9999}
-              reactionMs2={players === 2 ? reactionMs2 : undefined}
+              reactionMs2={players === 2 ? (reactionTime2 ?? 9999) : undefined}
               players={players}
               onPlayAgain={goToDuel}
               onMainMenu={goLobby}
