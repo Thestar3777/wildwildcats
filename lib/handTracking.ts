@@ -17,12 +17,16 @@ declare global {
 const WRIST = 0
 const THUMB_TIP = 4
 const INDEX_TIP = 8
+const MIDDLE_TIP = 12
 
-// Pinch threshold: distance (normalized 0–1) below which we call it a fire
-const PINCH_THRESHOLD = 0.07
+// 0.12 is forgiving enough for a fast pinch without too many false positives
+const PINCH_THRESHOLD = 0.12
 
 // Velocity is scaled by 100 so gestureDetection thresholds land in the 8–15 range
 const VELOCITY_SCALE = 100
+
+// Hold isFiring=true for this many frames after a pinch so the 50ms game tick catches it
+const FIRE_LATCH_FRAMES = 4
 
 function makeVelocityTracker() {
   let prevY: number | null = null
@@ -35,14 +39,28 @@ function makeVelocityTracker() {
   }
 }
 
-// Pinch: thumb tip (4) close to index tip (8), normalized landmark space
-function detectFiring(landmarks: { x: number; y: number }[]): boolean {
-  const thumb = landmarks[THUMB_TIP]
-  const index = landmarks[INDEX_TIP]
-  const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y)
-  const firing = dist < PINCH_THRESHOLD
-  if (firing) console.log("[handTracking] PINCH detected — dist:", dist.toFixed(4))
-  return firing
+function makeFireDetector() {
+  let latchFrames = 0
+  return (landmarks: { x: number; y: number }[]): boolean => {
+    const thumb = landmarks[THUMB_TIP]
+    const index = landmarks[INDEX_TIP]
+    const middle = landmarks[MIDDLE_TIP]
+
+    // Primary: thumb-to-index. Backup: thumb-to-middle (natural for some people)
+    const distIndex = Math.hypot(thumb.x - index.x, thumb.y - index.y)
+    const distMiddle = Math.hypot(thumb.x - middle.x, thumb.y - middle.y)
+
+    console.log("[handTracking] pinch distances — index:", distIndex.toFixed(3), "middle:", distMiddle.toFixed(3))
+
+    if (distIndex < PINCH_THRESHOLD || distMiddle < PINCH_THRESHOLD) {
+      latchFrames = FIRE_LATCH_FRAMES
+      console.log("[handTracking] FIRE detected — index:", distIndex.toFixed(3), "middle:", distMiddle.toFixed(3))
+    } else if (latchFrames > 0) {
+      latchFrames--
+    }
+
+    return latchFrames > 0
+  }
 }
 
 export function initHandTracking(
@@ -51,7 +69,17 @@ export function initHandTracking(
 ): () => void {
   console.log("[handTracking] init — attaching MediaPipe Hands to video element")
 
+  if (typeof window.Hands === "undefined") {
+    console.error("[handTracking] window.Hands not found — MediaPipe CDN script not loaded yet")
+    return () => {}
+  }
+  if (typeof window.Camera === "undefined") {
+    console.error("[handTracking] window.Camera not found — camera_utils CDN script not loaded yet")
+    return () => {}
+  }
+
   const computeVelocity = makeVelocityTracker()
+  const checkFiring = makeFireDetector()
 
   const hands = new window.Hands({
     locateFile: (file: string) =>
@@ -75,7 +103,7 @@ export function initHandTracking(
     const lm = results.multiHandLandmarks[0]
     const wrist = lm[WRIST]
     const velocity = computeVelocity(wrist.y)
-    const isFiring = detectFiring(lm)
+    const isFiring = checkFiring(lm)
 
     const data: HandData = {
       x: wrist.x,
@@ -100,8 +128,12 @@ export function initHandTracking(
     height: 480,
   })
 
-  camera.start()
-  console.log("[handTracking] camera started")
+  try {
+    camera.start()
+    console.log("[handTracking] camera started")
+  } catch (err) {
+    console.error("[handTracking] camera.start() failed — check browser camera permissions:", err)
+  }
 
   // Return cleanup: stop camera feed and free WASM memory
   return () => {
