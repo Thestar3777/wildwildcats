@@ -16,8 +16,17 @@ export function detectGesture(
   // No hand in frame = idle
   if (!hand) return "IDLE"
 
-  // Cheating: any significant movement OR firing before the draw signal
-  if (phase === "COUNTDOWN" && (hand.velocity > EARLY_VELOCITY_THRESHOLD || hand.isFiring)) {
+  // Cheating: significant upward hand movement before the draw signal.
+  // We deliberately do NOT flag isFiring during countdown — the trigger-pull
+  // detector is sensitive enough that natural hand-positioning into the
+  // holster pose can produce single-frame fire flickers, which would foul
+  // the player before they ever see "DRAW!". Velocity catches the only
+  // real cheat (raising the gun off the hip early).
+  if (phase === "COUNTDOWN" && hand.velocity > EARLY_VELOCITY_THRESHOLD) {
+    console.log("[gestureDetection] EARLY — velocity", {
+      velocity: hand.velocity.toFixed(2),
+      threshold: EARLY_VELOCITY_THRESHOLD,
+    })
     return "EARLY"
   }
 

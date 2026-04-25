@@ -6,9 +6,11 @@ import { detectGesture } from "@/lib/gestureDetection"
 import { tickGameEngine, getInitialState, getDrawDelay } from "@/lib/gameEngine"
 
 const COUNTDOWN_SECONDS = 3
-// Ignore gestures for this many ticks after startGame() so MediaPipe
-// velocity spikes from hand re-acquisition don't trigger EARLY.
-const WARMUP_TICKS = 6
+// Ignore gestures for this many ticks (50ms each) after startGame() so
+// MediaPipe re-acquisition spikes and the player's hand-into-pose movement
+// don't trigger EARLY. 1s is long enough for the typical settle-in but
+// well short of the 3s countdown.
+const WARMUP_TICKS = 20
 
 function playGunshot() {
   const audio = new Audio("/sounds/33276__mastafx__shot.wav")
