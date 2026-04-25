@@ -28,8 +28,8 @@ function tick2P(
 ): GameState {
   if (prev.phase === "WAITING" || prev.phase === "RESULT") return prev
 
-  const g1 = detectGesture(hand1, prev.phase)
-  const g2 = detectGesture(hand2, prev.phase)
+  const g1 = detectGesture(hand1, prev.phase, prev.countdown)
+  const g2 = detectGesture(hand2, prev.phase, prev.countdown)
 
   // Either player moving early during countdown is a foul
   if (g1 === "EARLY" || g2 === "EARLY") {
@@ -95,7 +95,7 @@ export function useGame(players: 1 | 2 = 1) {
           return tick2P(prev, hand1Ref.current, hand2Ref.current, drawSignalTimeRef.current, now)
         }
 
-        const gesture = detectGesture(hand1Ref.current, prev.phase)
+        const gesture = detectGesture(hand1Ref.current, prev.phase, prev.countdown)
         if (prev.phase === "DRAW" && gesture === "FIRED") {
           playGunshot()
         }
