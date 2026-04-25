@@ -137,8 +137,13 @@ export function initHandTracking(
     onResult(data)
   })
 
+  let closed = false
+
   const camera = new window.Camera(videoElement, {
-    onFrame: async () => { await hands.send({ image: videoElement }) },
+    onFrame: async () => {
+      if (closed) return
+      await hands.send({ image: videoElement })
+    },
     width: 640,
     height: 480,
   })
@@ -147,9 +152,10 @@ export function initHandTracking(
     .then(() => console.log("[handTracking] camera started"))
     .catch((err: unknown) => console.error("[handTracking] camera.start() failed — check browser camera permissions:", err))
 
-  // Return cleanup: stop camera feed and free WASM memory
+  // Return cleanup: guard flag prevents in-flight onFrame from hitting closed WASM
   return () => {
     console.log("[handTracking] cleanup — stopping camera and closing hands")
+    closed = true
     camera.stop()
     hands.close()
   }

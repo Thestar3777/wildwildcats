@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface IntroCinematicProps {
@@ -192,74 +192,83 @@ const TextSlide = ({ lines }: { lines: string[] }) => (
   </div>
 );
 
-const SPARKLE_COUNT = 28;
-const SPARKLES = Array.from({ length: SPARKLE_COUNT }).map((_, i) => ({
-  id: i,
-  left: Math.random() * 100,
-  top: Math.random() * 100,
-  size: 1.5 + Math.random() * 2.5,
-  delay: Math.random() * 4,
-  duration: 1.8 + Math.random() * 2.4,
-}));
+type SparkleData = { id: number; left: number; top: number; size: number; delay: number; duration: number }
+type EmberData = { id: number; left: number; size: number; delay: number; duration: number; drift: number }
 
-const Sparkles = () => (
-  <div className="absolute inset-0 pointer-events-none">
-    {SPARKLES.map((s) => (
-      <motion.div
-        key={s.id}
-        className="absolute rounded-full"
-        style={{
-          left: `${s.left}%`,
-          top: `${s.top}%`,
-          width: s.size,
-          height: s.size,
-          background: "hsl(45 100% 80%)",
-          boxShadow: "0 0 6px hsl(45 100% 75% / 0.9), 0 0 12px hsl(35 100% 60% / 0.6)",
-        }}
-        animate={{ opacity: [0, 1, 0], scale: [0.6, 1.4, 0.6] }}
-        transition={{ duration: s.duration, delay: s.delay, repeat: Infinity, ease: "easeInOut" }}
-      />
-    ))}
-  </div>
-);
+const Sparkles = () => {
+  const [particles, setParticles] = useState<SparkleData[]>([])
+  useEffect(() => {
+    setParticles(Array.from({ length: 28 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: 1.5 + Math.random() * 2.5,
+      delay: Math.random() * 4,
+      duration: 1.8 + Math.random() * 2.4,
+    })))
+  }, [])
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      {particles.map((s) => (
+        <motion.div
+          key={s.id}
+          className="absolute rounded-full"
+          style={{
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: s.size,
+            height: s.size,
+            background: "hsl(45 100% 80%)",
+            boxShadow: "0 0 6px hsl(45 100% 75% / 0.9), 0 0 12px hsl(35 100% 60% / 0.6)",
+          }}
+          animate={{ opacity: [0, 1, 0], scale: [0.6, 1.4, 0.6] }}
+          transition={{ duration: s.duration, delay: s.delay, repeat: Infinity, ease: "easeInOut" }}
+        />
+      ))}
+    </div>
+  )
+}
 
-const EMBER_COUNT = 14;
-const EMBERS = Array.from({ length: EMBER_COUNT }).map((_, i) => ({
-  id: i,
-  left: Math.random() * 100,
-  size: 2 + Math.random() * 3,
-  delay: Math.random() * 6,
-  duration: 6 + Math.random() * 6,
-  drift: (Math.random() - 0.5) * 60,
-}));
-
-const Embers = () => (
-  <div className="absolute inset-0 pointer-events-none overflow-hidden">
-    {EMBERS.map((e) => (
-      <motion.div
-        key={e.id}
-        className="absolute rounded-full"
-        style={{
-          left: `${e.left}%`,
-          bottom: -20,
-          width: e.size,
-          height: e.size,
-          background: "hsl(28 100% 65%)",
-          boxShadow: "0 0 8px hsl(28 100% 60% / 0.9), 0 0 16px hsl(15 100% 50% / 0.55)",
-        }}
-        animate={{
-          y: ["0vh", "-110vh"],
-          x: [0, e.drift, 0],
-          opacity: [0, 0.9, 0.9, 0],
-        }}
-        transition={{
-          duration: e.duration,
-          delay: e.delay,
-          repeat: Infinity,
-          ease: "easeOut",
-          times: [0, 0.15, 0.85, 1],
-        }}
-      />
-    ))}
-  </div>
-);
+const Embers = () => {
+  const [particles, setParticles] = useState<EmberData[]>([])
+  useEffect(() => {
+    setParticles(Array.from({ length: 14 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      size: 2 + Math.random() * 3,
+      delay: Math.random() * 6,
+      duration: 6 + Math.random() * 6,
+      drift: (Math.random() - 0.5) * 60,
+    })))
+  }, [])
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {particles.map((e) => (
+        <motion.div
+          key={e.id}
+          className="absolute rounded-full"
+          style={{
+            left: `${e.left}%`,
+            bottom: -20,
+            width: e.size,
+            height: e.size,
+            background: "hsl(28 100% 65%)",
+            boxShadow: "0 0 8px hsl(28 100% 60% / 0.9), 0 0 16px hsl(15 100% 50% / 0.55)",
+          }}
+          animate={{
+            y: ["0vh", "-110vh"],
+            x: [0, e.drift, 0],
+            opacity: [0, 0.9, 0.9, 0],
+          }}
+          transition={{
+            duration: e.duration,
+            delay: e.delay,
+            repeat: Infinity,
+            ease: "easeOut",
+            times: [0, 0.15, 0.85, 1],
+          }}
+        />
+      ))}
+    </div>
+  )
+}
