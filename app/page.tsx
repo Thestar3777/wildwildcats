@@ -8,7 +8,6 @@ import { PlayerSelectScreen } from "@/components/screens/PlayerSelectScreen"
 import { InstructionsScreen } from "@/components/screens/InstructionsScreen"
 import { DuelScreen, type DuelPhase } from "@/components/screens/DuelScreen"
 import { ResultScreen } from "@/components/screens/ResultScreen"
-import WebcamView from "@/components/WebcamView"
 
 type AppState =
   | "INTRO"
@@ -178,8 +177,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hidden webcam for later integration */}
-      <video ref={videoRef} className="hidden" autoPlay playsInline muted />
     </main>
   )
 }

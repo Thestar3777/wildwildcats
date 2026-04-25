@@ -16,8 +16,6 @@ export function detectGesture(
   // No hand in frame = idle
   if (!hand) return "IDLE"
 
-    if (hand.isFiring) console.log("[gesture] isFiring=true received, phase=", phase)
-
   // Cheating: any significant movement OR firing before the draw signal
   if (phase === "COUNTDOWN" && (hand.velocity > EARLY_VELOCITY_THRESHOLD || hand.isFiring)) {
     return "EARLY"
