@@ -43,6 +43,7 @@ export default function Home() {
   const [flash, setFlash] = useState(false)
   const [shake, setShake] = useState(false)
   const [hand, setHand] = useState({ x: 0.5, y: 0.5 })
+  const [hand2, setHand2] = useState<{ x: number; y: number } | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const cleanupTrackingRef = useRef<(() => void) | null>(null)
@@ -98,6 +99,7 @@ export default function Home() {
             updateHand(p1)
             updateHand2(p2)
             if (p1) setHand({ x: p1.x, y: p1.y })
+            setHand2(p2 ? { x: p2.x, y: p2.y } : null)
           },
           2
         )
@@ -164,6 +166,7 @@ export default function Home() {
               flash={flash}
               shake={shake}
               hand={hand}
+              hand2={hand2}
               players={players}
               videoRef={videoRef}
             >

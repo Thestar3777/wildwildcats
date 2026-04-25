@@ -6,9 +6,11 @@ import { detectGesture } from "@/lib/gestureDetection"
 import { tickGameEngine, getInitialState, getDrawDelay } from "@/lib/gameEngine"
 
 const COUNTDOWN_SECONDS = 3
-// Ignore gestures for this many ticks after startGame() so MediaPipe
-// velocity spikes from hand re-acquisition don't trigger EARLY.
-const WARMUP_TICKS = 6
+// Ignore gestures for this many ticks (50ms each) after startGame() so
+// MediaPipe re-acquisition spikes and the player's hand-into-pose movement
+// don't trigger EARLY. 1s is long enough for the typical settle-in but
+// well short of the 3s countdown.
+const WARMUP_TICKS = 20
 
 function playGunshot() {
   const audio = new Audio("/sounds/33276__mastafx__shot.wav")
@@ -26,8 +28,8 @@ function tick2P(
 ): GameState {
   if (prev.phase === "WAITING" || prev.phase === "RESULT") return prev
 
-  const g1 = detectGesture(hand1, prev.phase)
-  const g2 = detectGesture(hand2, prev.phase)
+  const g1 = detectGesture(hand1, prev.phase, prev.countdown)
+  const g2 = detectGesture(hand2, prev.phase, prev.countdown)
 
   // Either player moving early during countdown is a foul
   if (g1 === "EARLY" || g2 === "EARLY") {
@@ -35,9 +37,17 @@ function tick2P(
   }
 
   if (prev.phase === "DRAW" && drawSignalTime !== null) {
-    // wasHolstered gate: fire only counts if the player completed the holster pose first
+    // wasHolstered gate: only credit the fire if the player actually held the
+    // gun pose first. wasHolstered is sticky (once true, stays true), so it
+    // never fights the isFiring latch.
     const p1Fired = g1 === "FIRED" && hand1?.wasHolstered === true
     const p2Fired = g2 === "FIRED" && hand2?.wasHolstered === true
+
+    console.log("[tick2P] DRAW —", {
+      g1, g2, p1Fired, p2Fired,
+      hand1: hand1 ? `fire=${hand1.isFiring} hol=${hand1.wasHolstered}` : "null",
+      hand2: hand2 ? `fire=${hand2.isFiring} hol=${hand2.wasHolstered}` : "null",
+    })
 
     if (p1Fired || p2Fired) {
       playGunshot()
@@ -93,7 +103,7 @@ export function useGame(players: 1 | 2 = 1) {
           return tick2P(prev, hand1Ref.current, hand2Ref.current, drawSignalTimeRef.current, now)
         }
 
-        const gesture = detectGesture(hand1Ref.current, prev.phase)
+        const gesture = detectGesture(hand1Ref.current, prev.phase, prev.countdown)
         if (prev.phase === "DRAW" && gesture === "FIRED") {
           playGunshot()
         }

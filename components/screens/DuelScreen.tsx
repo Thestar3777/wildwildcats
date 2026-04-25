@@ -16,6 +16,7 @@ interface DuelScreenProps {
   flash?: boolean;
   shake?: boolean;
   hand?: { x: number; y: number };
+  hand2?: { x: number; y: number } | null;
   /**
    * Pass a ref to a <video> element you control. The parent owns the webcam
    * stream — this component will not call getUserMedia.
@@ -56,6 +57,7 @@ export const DuelScreen = ({
   flash,
   shake,
   hand = { x: 0.5, y: 0.5 },
+  hand2,
   videoRef,
   players = 1,
   children,
@@ -99,6 +101,9 @@ export const DuelScreen = ({
           />
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,hsl(28_40%_18%),hsl(20_50%_6%))]" />
           <Crosshair x={hand.x} y={hand.y} active={showCrosshair} />
+          {players === 2 && hand2 && (
+            <Crosshair x={hand2.x} y={hand2.y} active={showCrosshair} className="hue-rotate-[200deg]" />
+          )}
           <StateText state={stateForOverlay} countdown={countdown} />
         </WebcamFrame>
       </div>
