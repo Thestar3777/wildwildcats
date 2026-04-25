@@ -143,12 +143,9 @@ export function initHandTracking(
     height: 480,
   })
 
-  try {
-    camera.start()
-    console.log("[handTracking] camera started")
-  } catch (err) {
-    console.error("[handTracking] camera.start() failed — check browser camera permissions:", err)
-  }
+  camera.start()
+    .then(() => console.log("[handTracking] camera started"))
+    .catch((err: unknown) => console.error("[handTracking] camera.start() failed — check browser camera permissions:", err))
 
   // Return cleanup: stop camera feed and free WASM memory
   return () => {
