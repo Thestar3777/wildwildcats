@@ -8,7 +8,7 @@ import { tickGameEngine, getInitialState, getDrawDelay } from "@/lib/gameEngine"
 const COUNTDOWN_SECONDS = 3
 // Ignore gestures for this many ticks after startGame() so MediaPipe
 // velocity spikes from hand re-acquisition don't trigger EARLY.
-const WARMUP_TICKS = 6
+const WARMUP_TICKS = 20
 
 function playGunshot() {
   const audio = new Audio("/sounds/33276__mastafx__shot.wav")
@@ -26,8 +26,9 @@ function tick2P(
 ): GameState {
   if (prev.phase === "WAITING" || prev.phase === "RESULT") return prev
 
-  const g1 = detectGesture(hand1, prev.phase)
-  const g2 = detectGesture(hand2, prev.phase)
+  const g1 = detectGesture(hand1, prev.phase, prev.countdown)
+  const g2 = detectGesture(hand2, prev.phase, prev.countdown)
+  console.log("[tick2P]", { phase: prev.phase, countdown: prev.countdown, g1, g2, h1Holstered: hand1?.wasHolstered, h2Holstered: hand2?.wasHolstered })
 
   // Either player moving early during countdown is a foul
   if (g1 === "EARLY" || g2 === "EARLY") {
@@ -93,7 +94,7 @@ export function useGame(players: 1 | 2 = 1) {
           return tick2P(prev, hand1Ref.current, hand2Ref.current, drawSignalTimeRef.current, now)
         }
 
-        const gesture = detectGesture(hand1Ref.current, prev.phase)
+        const gesture = detectGesture(hand1Ref.current, prev.phase, prev.countdown)
         if (prev.phase === "DRAW" && gesture === "FIRED") {
           playGunshot()
         }

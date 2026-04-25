@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, RefObject } from "react";
+import { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { DesertBackdrop } from "@/components/game/DesertBackdrop";
 import { WebcamFrame } from "@/components/game/WebcamFrame";
@@ -16,6 +16,7 @@ interface DuelScreenProps {
   flash?: boolean;
   shake?: boolean;
   hand?: { x: number; y: number };
+  hand2?: { x: number; y: number };
   /**
    * Pass a ref to a <video> element you control. The parent owns the webcam
    * stream — this component will not call getUserMedia.
@@ -56,6 +57,7 @@ export const DuelScreen = ({
   flash,
   shake,
   hand = { x: 0.5, y: 0.5 },
+  hand2,
   videoRef,
   players = 1,
   children,
@@ -98,7 +100,10 @@ export const DuelScreen = ({
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,hsl(28_40%_18%),hsl(20_50%_6%))]" />
-          <Crosshair x={hand.x} y={hand.y} active={showCrosshair} />
+          <Crosshair x={hand.x} y={hand.y} active={showCrosshair} player={1} label={players === 2 ? "P1" : undefined} />
+          {players === 2 && hand2 && (
+            <Crosshair x={hand2.x} y={hand2.y} active={showCrosshair} player={2} label="P2" />
+          )}
           <StateText state={stateForOverlay} countdown={countdown} />
         </WebcamFrame>
       </div>

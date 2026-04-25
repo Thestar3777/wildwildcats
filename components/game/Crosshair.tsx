@@ -5,10 +5,14 @@ interface CrosshairProps {
   x: number;
   y: number;
   active?: boolean;
+  /** P2 crosshair is hue-rotated blue so both hands are visually distinguishable */
+  player?: 1 | 2;
+  /** Optional label rendered above the crosshair (e.g. "P1", "P2") */
+  label?: string;
   className?: string;
 }
 
-export const Crosshair = ({ x, y, active = true, className }: CrosshairProps) => {
+export const Crosshair = ({ x, y, active = true, player = 1, label, className }: CrosshairProps) => {
   if (!active) return null;
   return (
     <div
@@ -20,8 +24,17 @@ export const Crosshair = ({ x, y, active = true, className }: CrosshairProps) =>
       style={{
         left: `${x * 100}%`,
         top: `${y * 100}%`,
+        filter: player === 2 ? "hue-rotate(200deg)" : undefined,
       }}
     >
+      {label && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 -translate-y-full pb-1 text-xs font-bold text-black"
+          style={{ textShadow: "0 0 3px white, 0 0 3px white, 0 0 3px white" }}
+        >
+          {label}
+        </div>
+      )}
       <svg width="84" height="84" viewBox="0 0 84 84" className="drop-shadow-[0_0_8px_hsl(var(--rust-glow)/0.8)]">
         <circle cx="42" cy="42" r="30" fill="none" stroke="hsl(var(--gold))" strokeWidth="2" strokeDasharray="6 4" />
         <circle cx="42" cy="42" r="18" fill="none" stroke="hsl(var(--rust-glow))" strokeWidth="1.5" />

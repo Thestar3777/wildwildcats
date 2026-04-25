@@ -15,6 +15,8 @@ declare global {
 
 // Landmark indices used by MediaPipe Hands
 const WRIST = 0
+const THUMB_IP = 3       // thumb knuckle closest to tip
+const THUMB_TIP = 4
 const INDEX_MCP = 5      // index finger base knuckle
 const INDEX_TIP = 8
 const MIDDLE_MCP = 9     // middle finger base knuckle
@@ -31,8 +33,10 @@ const VELOCITY_SCALE = 100
 const FIRE_LATCH_FRAMES = 4    // hold isFiring=true so the 50ms tick always catches it
 const HOLSTER_HOLD_FRAMES = 1  // frames the holster pose must be held to arm the draw
 
-// 1P: raise pointing finger (index up, middle+ring+pinky curled)
-const INDEX_RAISE_MARGIN = 0.12  // index tip must be this far above its MCP (screen y, 0=top)
+// 1P: finger-gun pose + thumb-drop trigger pull
+const THUMB_UP_MARGIN = 0.03      // thumbTip.y must be this far above wrist.y
+const CAMERA_POINT_Z = 0.65       // tip.z - mcp.z must be below this (loosened for natural gun angles)
+const TRIGGER_PULL_MARGIN = -0.02 // thumbTip.y must exceed thumbIP.y by this; negative fires before tip fully passes IP
 
 // 2P: flat hand parallel to screen
 const HOLSTER_Y_MIN_2P = 0.55   // wrist must be this low on screen to be "holstered"
@@ -60,29 +64,41 @@ function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wa
   let latchFrames = 0
 
   if (mode === 1) {
-    // 1P: raise pointing finger — index tip above MCP, middle+ring+pinky curled.
+    // 1P: hold finger-gun pose (index pointing at camera, thumb up), drop thumb to fire.
     return (lm: Lm[]) => {
-      // tip.y < mcp.y means tip is higher on screen (y=0 is top)
-      const indexRaised = lm[INDEX_TIP].y < lm[INDEX_MCP].y - INDEX_RAISE_MARGIN
-      const middleCurled = lm[MIDDLE_TIP].y > lm[MIDDLE_MCP].y
-      const ringCurled = lm[RING_TIP].y > lm[RING_MCP].y
-      const pinkyCurled = lm[PINKY_TIP].y > lm[PINKY_MCP].y
+      const wrist = lm[WRIST]
+      const indexZDelta = lm[INDEX_TIP].z - lm[INDEX_MCP].z
+      const middleZDelta = lm[MIDDLE_TIP].z - lm[MIDDLE_MCP].z
 
-      const firePose = indexRaised && middleCurled && ringCurled && pinkyCurled
+      const thumbUp = lm[THUMB_TIP].y < wrist.y - THUMB_UP_MARGIN
+      const fingerAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
+      const inHolsterPose = thumbUp && fingerAtCamera
+
+      if (inHolsterPose) {
+        holsterHoldFrames = Math.min(holsterHoldFrames + 1, HOLSTER_HOLD_FRAMES)
+        if (holsterHoldFrames >= HOLSTER_HOLD_FRAMES) wasHolstered = true
+      } else {
+        holsterHoldFrames = 0
+      }
+
+      const stillAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
+      const thumbFired = lm[THUMB_TIP].y > lm[THUMB_IP].y + TRIGGER_PULL_MARGIN
+      const firePose = wasHolstered && stillAtCamera && thumbFired
 
       console.log("[handTracking 1P] gesture —", {
-        indexRaised, middleCurled, ringCurled, pinkyCurled, firePose,
-        indexTipY: lm[INDEX_TIP].y.toFixed(3), indexMcpY: lm[INDEX_MCP].y.toFixed(3),
+        thumbUp, fingerAtCamera, wasHolstered, thumbFired, firePose,
+        indexZ: indexZDelta.toFixed(3),
+        thumbDelta: (lm[THUMB_TIP].y - lm[THUMB_IP].y).toFixed(3),
       })
 
       if (firePose) {
         latchFrames = FIRE_LATCH_FRAMES
-        console.log("[handTracking 1P] FIRE — pointing finger raised")
+        console.log("[handTracking 1P] FIRE — thumb trigger pulled")
       } else if (latchFrames > 0) {
         latchFrames--
       }
 
-      return { isFiring: latchFrames > 0, wasHolstered: indexRaised }
+      return { isFiring: latchFrames > 0, wasHolstered }
     }
   }
 
@@ -165,11 +181,13 @@ export function initHandTracking(
       `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
   })
 
+  // 2P needs the full model so MediaPipe reliably tracks both hands simultaneously.
+  // 1P stays on lite (modelComplexity: 0) — no latency regression.
   hands.setOptions({
     maxNumHands: players,
-    modelComplexity: 0, // fastest model for low latency
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.6,
+    modelComplexity: players === 2 ? 1 : 0,
+    minDetectionConfidence: players === 2 ? 0.5 : 0.7,
+    minTrackingConfidence: players === 2 ? 0.5 : 0.6,
   })
 
   hands.onResults((results: {
@@ -196,20 +214,23 @@ export function initHandTracking(
       return
     }
 
-    // 2P: index 0 → P1, index 1 → P2. Each player's hand is identified by position in the
-    // multiHandLandmarks array (consistent frame-to-frame once MediaPipe locks on).
+    // 2P: sort by wrist.x so leftmost hand on screen is always P1, rightmost is P2.
+    // MediaPipe's landmarks[] order can swap frame-to-frame at similar confidence;
+    // spatial sort keeps assignment stable as long as players don't cross arms.
+    const sorted = [...landmarks].sort((a, b) => a[WRIST].x - b[WRIST].x)
+
     let p1Data: HandData | null = null
     let p2Data: HandData | null = null
 
-    if (landmarks.length >= 1) {
-      const lm1 = landmarks[0]
+    if (sorted.length >= 1) {
+      const lm1 = sorted[0]
       const velocity1 = computeVelocity1(lm1[INDEX_TIP].y)
       const { isFiring: f1, wasHolstered: h1 } = checkGesture1(lm1)
       p1Data = { x: lm1[INDEX_TIP].x, y: lm1[INDEX_TIP].y, velocity: velocity1, isFiring: f1, wasHolstered: h1 }
     }
 
-    if (landmarks.length >= 2 && checkGesture2 && computeVelocity2) {
-      const lm2 = landmarks[1]
+    if (sorted.length >= 2 && checkGesture2 && computeVelocity2) {
+      const lm2 = sorted[1]
       const velocity2 = computeVelocity2(lm2[INDEX_TIP].y)
       const { isFiring: f2, wasHolstered: h2 } = checkGesture2(lm2)
       p2Data = { x: lm2[INDEX_TIP].x, y: lm2[INDEX_TIP].y, velocity: velocity2, isFiring: f2, wasHolstered: h2 }
