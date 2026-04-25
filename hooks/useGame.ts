@@ -23,7 +23,7 @@ export function useGame() {
 
     const id = setInterval(() => {
       setGameState(prev => {
-        const gesture = detectGesture(handRef.current, prev.gesture, prev.phase)
+        const gesture = detectGesture(handRef.current, prev.phase)
         return tickGameEngine(prev, gesture, drawSignalTimeRef.current, Date.now())
       })
     }, 50)
