@@ -23,8 +23,9 @@ const INDEX_TIP = 8
 // Velocity is scaled by 100 so gestureDetection thresholds land in the 8–15 range
 const VELOCITY_SCALE = 100
 
-// Index finger counts as "horizontal" when tip and base knuckle are within this Y distance
-const INDEX_HORIZ_TOLERANCE = 0.10
+// Index finger counts as "horizontal" when tip and base knuckle are within this Y distance.
+// 0.65 accommodates natural gun-pose camera angles (observed real values ~0.60).
+const INDEX_HORIZ_TOLERANCE = 0.65
 // Index finger must be at least this long to count as extended (not curled)
 const INDEX_MIN_EXTENSION = 0.10
 // Thumb tip must drop this far past its IP joint to register as "fired"
