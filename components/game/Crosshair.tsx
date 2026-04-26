@@ -21,7 +21,6 @@ export const Crosshair = ({ x, y, active = true, label, className }: CrosshairPr
       style={{
         left: `${x * 100}%`,
         top: `${y * 100}%`,
-        filter: player === 2 ? "hue-rotate(200deg)" : undefined,
       }}
     >
       {label && (
