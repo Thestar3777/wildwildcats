@@ -24,7 +24,8 @@ function tick2P(
   hand1: HandData | null,
   hand2: HandData | null,
   drawSignalTime: number | null,
-  now: number
+  now: number,
+  winner: React.MutableRefObject<1 | 2 | null>
 ): GameState {
   if (prev.phase === "WAITING" || prev.phase === "RESULT") return prev
 
@@ -49,16 +50,20 @@ function tick2P(
       hand2: hand2 ? `fire=${hand2.isFiring} hol=${hand2.wasHolstered}` : "null",
     })
 
-    if (p1Fired || p2Fired) {
+    if ((p1Fired || p2Fired) && winner.current === null) {
+      // Track which player fired first
+      if (p1Fired) winner.current = 1
+      else if (p2Fired) winner.current = 2
+
       playGunshot()
       const rt = now - drawSignalTime
+      // Only the player who fired first gets the reaction time
       return {
         ...prev,
         phase: "RESULT",
         gesture: "FIRED",
-        // Winner gets actual reaction time; loser gets sentinel 9999
-        reactionTime: p1Fired ? rt : 9999,
-        reactionTime2: p2Fired ? rt : 9999,
+        reactionTime: winner.current === 1 ? rt : 9999,
+        reactionTime2: winner.current === 2 ? rt : 9999,
       }
     }
 
@@ -76,6 +81,7 @@ export function useGame(players: 1 | 2 = 1) {
   const hand2Ref = useRef<HandData | null>(null)
   const drawSignalTimeRef = useRef<number | null>(null)
   const warmupTicksRef = useRef(0)
+  const winner2PRef = useRef<1 | 2 | null>(null)
 
   // Called every frame from handTracking (P1)
   const updateHand = useCallback((data: HandData | null) => {
@@ -100,7 +106,7 @@ export function useGame(players: 1 | 2 = 1) {
         }
 
         if (players === 2) {
-          return tick2P(prev, hand1Ref.current, hand2Ref.current, drawSignalTimeRef.current, now)
+          return tick2P(prev, hand1Ref.current, hand2Ref.current, drawSignalTimeRef.current, now, winner2PRef)
         }
 
         const gesture = detectGesture(hand1Ref.current, prev.phase, prev.countdown)
@@ -139,6 +145,7 @@ export function useGame(players: 1 | 2 = 1) {
 
   const startGame = useCallback(() => {
     drawSignalTimeRef.current = null
+    winner2PRef.current = null
     warmupTicksRef.current = WARMUP_TICKS
     setGameState({ ...getInitialState(), phase: "COUNTDOWN", countdown: COUNTDOWN_SECONDS })
   }, [])
