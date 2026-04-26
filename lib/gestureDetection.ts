@@ -12,14 +12,22 @@ export const EARLY_VELOCITY_THRESHOLD = 8
 export function detectGesture(
   hand: HandData | null,
   phase: GamePhase,
-  countdown: number
+  countdown: number = 99
 ): GestureState {
   // No hand in frame = idle
   if (!hand) return "IDLE"
 
-  // Cheating: raising the gun arm before DRAW. Only enforce in the final tense moment
-  // (countdown 1 + the steady random delay at 0) — 3 and 2 are free settle-in time.
+  // Cheating window is just the final "1" tick + the random steady delay
+  // (countdown <= 1). During 3-2 the player is settling into pose, so we
+  // ignore movement. Only velocity is checked — the trigger-pull detector
+  // is too sensitive to use as a foul signal (natural thumb wobble flickers
+  // isFiring even when the hand is stationary).
   if (phase === "COUNTDOWN" && countdown <= 1 && hand.velocity > EARLY_VELOCITY_THRESHOLD) {
+    console.log("[gestureDetection] EARLY — velocity", {
+      velocity: hand.velocity.toFixed(2),
+      threshold: EARLY_VELOCITY_THRESHOLD,
+      countdown,
+    })
     return "EARLY"
   }
 

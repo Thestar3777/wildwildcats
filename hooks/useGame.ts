@@ -6,8 +6,10 @@ import { detectGesture } from "@/lib/gestureDetection"
 import { tickGameEngine, getInitialState, getDrawDelay } from "@/lib/gameEngine"
 
 const COUNTDOWN_SECONDS = 3
-// Ignore gestures for this many ticks after startGame() so MediaPipe
-// velocity spikes from hand re-acquisition don't trigger EARLY.
+// Ignore gestures for this many ticks (50ms each) after startGame() so
+// MediaPipe re-acquisition spikes and the player's hand-into-pose movement
+// don't trigger EARLY. 1s is long enough for the typical settle-in but
+// well short of the 3s countdown.
 const WARMUP_TICKS = 20
 
 function playGunshot() {
@@ -28,7 +30,6 @@ function tick2P(
 
   const g1 = detectGesture(hand1, prev.phase, prev.countdown)
   const g2 = detectGesture(hand2, prev.phase, prev.countdown)
-  console.log("[tick2P]", { phase: prev.phase, countdown: prev.countdown, g1, g2, h1Holstered: hand1?.wasHolstered, h2Holstered: hand2?.wasHolstered })
 
   // Either player moving early during countdown is a foul
   if (g1 === "EARLY" || g2 === "EARLY") {
