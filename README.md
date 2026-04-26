@@ -110,17 +110,14 @@ pnpm dev
 # or
 bun dev
 ```
+### Install dependencies
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Run the app
+npm run dev
 
-## Learn More
+4. Open in browser
+http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
+Make sure your webcam is enabled.
