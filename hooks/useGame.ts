@@ -37,9 +37,17 @@ function tick2P(
   }
 
   if (prev.phase === "DRAW" && drawSignalTime !== null) {
-    // wasHolstered gate: fire only counts if the player completed the holster pose first
+    // wasHolstered gate: only credit the fire if the player actually held the
+    // gun pose first. wasHolstered is sticky (once true, stays true), so it
+    // never fights the isFiring latch.
     const p1Fired = g1 === "FIRED" && hand1?.wasHolstered === true
     const p2Fired = g2 === "FIRED" && hand2?.wasHolstered === true
+
+    console.log("[tick2P] DRAW —", {
+      g1, g2, p1Fired, p2Fired,
+      hand1: hand1 ? `fire=${hand1.isFiring} hol=${hand1.wasHolstered}` : "null",
+      hand2: hand2 ? `fire=${hand2.isFiring} hol=${hand2.wasHolstered}` : "null",
+    })
 
     if (p1Fired || p2Fired) {
       playGunshot()

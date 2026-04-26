@@ -19,8 +19,8 @@ export function detectGesture(
 
   // Cheating window is just the final "1" tick + the random steady delay
   // (countdown <= 1). During 3-2 the player is settling into pose, so we
-  // ignore movement. Only velocity is checked — the trigger-pull detector
-  // is too sensitive to use as a foul signal (natural thumb wobble flickers
+  // ignore movement. Only velocity is checked — the fire-pose detector is
+  // too sensitive to use as a foul signal (natural finger wobble flickers
   // isFiring even when the hand is stationary).
   if (phase === "COUNTDOWN" && countdown <= 1 && hand.velocity > EARLY_VELOCITY_THRESHOLD) {
     console.log("[gestureDetection] EARLY — velocity", {

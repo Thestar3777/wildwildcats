@@ -5,14 +5,11 @@ interface CrosshairProps {
   x: number;
   y: number;
   active?: boolean;
-  /** P2 crosshair is hue-rotated blue so both hands are visually distinguishable */
-  player?: 1 | 2;
-  /** Optional label rendered above the crosshair (e.g. "P1", "P2") */
   label?: string;
   className?: string;
 }
 
-export const Crosshair = ({ x, y, active = true, player = 1, label, className }: CrosshairProps) => {
+export const Crosshair = ({ x, y, active = true, label, className }: CrosshairProps) => {
   if (!active) return null;
   return (
     <div
@@ -28,10 +25,7 @@ export const Crosshair = ({ x, y, active = true, player = 1, label, className }:
       }}
     >
       {label && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 -translate-y-full pb-1 text-xs font-bold text-black"
-          style={{ textShadow: "0 0 3px white, 0 0 3px white, 0 0 3px white" }}
-        >
+        <div className="absolute left-1/2 -translate-x-1/2 -top-7 font-display text-sm tracking-widest text-black drop-shadow-[0_0_4px_rgba(255,255,255,0.7)] whitespace-nowrap">
           {label}
         </div>
       )}

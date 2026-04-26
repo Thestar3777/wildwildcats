@@ -21,34 +21,21 @@ const INDEX_MCP = 5      // index finger base knuckle
 const INDEX_TIP = 8
 const MIDDLE_MCP = 9     // middle finger base knuckle
 const MIDDLE_TIP = 12
-const RING_MCP = 13      // ring finger base knuckle
-const RING_TIP = 16
-const PINKY_MCP = 17     // pinky base knuckle
-const PINKY_TIP = 20
 
 // Velocity is scaled by 100 so gestureDetection thresholds land in the 8–15 range
 const VELOCITY_SCALE = 100
 
-// Shared
 const FIRE_LATCH_FRAMES = 4    // hold isFiring=true so the 50ms tick always catches it
 const HOLSTER_HOLD_FRAMES = 1  // frames the holster pose must be held to arm the draw
 
-// 1P: western hip-draw (thumb up, finger at camera, ring+pinky curled)
+// Hip-draw gun: thumb up, finger at camera, ring+pinky curled. Used for BOTH
+// players in 2P mode — each detector instance keeps its own state.
 const THUMB_UP_MARGIN = 0.03     // thumbTip.y must be this far above wrist.y
 const CAMERA_POINT_Z = -0.03     // tip.z - mcp.z must be below this (negative = toward camera)
-// Trigger pull: thumb drop is detected as soon as the tip falls to within
-// 0.02 of the IP joint. A negative margin means we fire BEFORE the tip
-// passes the IP — the rest pose sits at Δy ≈ -0.06 to -0.09, so any meaningful
-// drop crosses this line. Was +0.02 (required full pass-through), which only
-// triggered on extreme thumb drops and made fire feel laggy.
+// Trigger pull: thumb tip falls to within 0.02 of the IP joint. Negative margin
+// means we fire BEFORE the tip passes the IP — rest pose sits at Δy ≈ -0.06 to
+// -0.09, so any meaningful drop crosses this line.
 const TRIGGER_PULL_MARGIN = -0.02
-
-// 2P: flat hand parallel to screen
-const HOLSTER_Y_MIN_2P = 0.55   // wrist must be this low on screen to be "holstered"
-const FLAT_HAND_TOLERANCE = 0.12 // max |tip.y - mcp.y| for all fingers (holster check)
-const FLAT_HAND_FIRE_TOL = 0.15  // same check, more lenient at fire height
-const RAISE_Y_MAX = 0.45         // wrist must rise above this Y (lower value) to fire
-const FLAT_CAMERA_Z = -0.03      // tip.z - mcp.z must stay above this (not pointing at camera)
 
 type Lm = { x: number; y: number; z: number }
 
@@ -63,67 +50,24 @@ function makeVelocityTracker() {
   }
 }
 
-function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wasHolstered: boolean } {
+function makeGunDrawDetector(label: string): (lm: Lm[]) => { isFiring: boolean; wasHolstered: boolean } {
   let holsterHoldFrames = 0
   let wasHolstered = false
   let latchFrames = 0
 
-  if (mode === 1) {
-    // 1P: hold finger-gun pose (index pointing at camera, thumb up), drop thumb to fire.
-    return (lm: Lm[]) => {
-      const wrist = lm[WRIST]
-      const indexZDelta = lm[INDEX_TIP].z - lm[INDEX_MCP].z
-      const middleZDelta = lm[MIDDLE_TIP].z - lm[MIDDLE_MCP].z
-
-      const thumbUp = lm[THUMB_TIP].y < wrist.y - THUMB_UP_MARGIN
-      const fingerAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
-      const inHolsterPose = thumbUp && fingerAtCamera
-
-      if (inHolsterPose) {
-        holsterHoldFrames = Math.min(holsterHoldFrames + 1, HOLSTER_HOLD_FRAMES)
-        if (holsterHoldFrames >= HOLSTER_HOLD_FRAMES) wasHolstered = true
-      } else {
-        holsterHoldFrames = 0
-      }
-
-      const stillAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
-      const thumbFired = lm[THUMB_TIP].y > lm[THUMB_IP].y + TRIGGER_PULL_MARGIN
-      const firePose = wasHolstered && stillAtCamera && thumbFired
-
-      console.log("[handTracking 1P] gesture —", {
-        thumbUp, fingerAtCamera, wasHolstered, thumbFired, firePose,
-        indexZ: indexZDelta.toFixed(3),
-        thumbDelta: (lm[THUMB_TIP].y - lm[THUMB_IP].y).toFixed(3),
-      })
-
-      if (firePose) {
-        latchFrames = FIRE_LATCH_FRAMES
-        console.log("[handTracking 1P] FIRE — thumb trigger pulled")
-      } else if (latchFrames > 0) {
-        latchFrames--
-      }
-
-      return { isFiring: latchFrames > 0, wasHolstered }
-    }
-  }
-
-  // 2P: flat hand parallel to screen, raise from hip to fire.
+  // Thumb-up gun at hip, index or middle finger pointing at camera, ring+pinky curled.
+  // Fire = thumb drops down (trigger pull) while still aiming at camera.
   return (lm: Lm[]) => {
     const wrist = lm[WRIST]
 
-    // Flat hand: all finger tips at approximately the same Y as their MCPs/PIPs
-    const flatIndex = Math.abs(lm[INDEX_TIP].y - lm[INDEX_MCP].y) < FLAT_HAND_TOLERANCE
-    const flatMiddle = Math.abs(lm[MIDDLE_TIP].y - lm[MIDDLE_MCP].y) < FLAT_HAND_TOLERANCE
-    const flatRing = Math.abs(lm[RING_TIP].y - lm[RING_MCP].y) < FLAT_HAND_TOLERANCE
-    const flatPinky = Math.abs(lm[PINKY_TIP].y - lm[PINKY_MCP].y) < FLAT_HAND_TOLERANCE
-    const flatHand = flatIndex && flatMiddle && flatRing && flatPinky
+    const indexZDelta = lm[INDEX_TIP].z - lm[INDEX_MCP].z
+    const middleZDelta = lm[MIDDLE_TIP].z - lm[MIDDLE_MCP].z
 
-    // Not pointing at camera: fingers parallel to screen (z delta near zero or positive)
-    const notAtCamera =
-      (lm[INDEX_TIP].z - lm[INDEX_MCP].z) > FLAT_CAMERA_Z &&
-      (lm[MIDDLE_TIP].z - lm[MIDDLE_MCP].z) > FLAT_CAMERA_Z
-
-    const inHolsterPose = wrist.y > HOLSTER_Y_MIN_2P && flatHand && notAtCamera
+    const thumbUp = lm[THUMB_TIP].y < wrist.y - THUMB_UP_MARGIN
+    const fingerAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
+    // Ring/pinky curl checks are unreliable when the fist faces the camera
+    // (tips collapse behind MCPs in 2D). Thumb-up + camera-aim is sufficient.
+    const inHolsterPose = thumbUp && fingerAtCamera
 
     if (inHolsterPose) {
       holsterHoldFrames = Math.min(holsterHoldFrames + 1, HOLSTER_HOLD_FRAMES)
@@ -132,21 +76,19 @@ function makeGunDrawDetector(mode: 1 | 2): (lm: Lm[]) => { isFiring: boolean; wa
       holsterHoldFrames = 0
     }
 
-    // Fire: raised past midscreen + flat hand maintained + wasHolstered
-    const raised = wrist.y < RAISE_Y_MAX
-    const flatAtFire =
-      Math.abs(lm[INDEX_TIP].y - lm[INDEX_MCP].y) < FLAT_HAND_FIRE_TOL &&
-      Math.abs(lm[MIDDLE_TIP].y - lm[MIDDLE_MCP].y) < FLAT_HAND_FIRE_TOL
-    const firePose2P = wasHolstered && raised && flatAtFire
+    const stillAtCamera = indexZDelta < CAMERA_POINT_Z || middleZDelta < CAMERA_POINT_Z
+    const thumbFired = lm[THUMB_TIP].y > lm[THUMB_IP].y + TRIGGER_PULL_MARGIN
+    const firePose = wasHolstered && stillAtCamera && thumbFired
 
-    console.log("[handTracking 2P] gesture —", {
-      flatHand, notAtCamera, inHolsterPose, wasHolstered, raised, flatAtFire, firePose2P,
-      wristY: wrist.y.toFixed(3),
+    console.log(`[handTracking ${label}] gesture —`, {
+      thumbUp, fingerAtCamera, wasHolstered, thumbFired, firePose,
+      indexZ: indexZDelta.toFixed(3), middleZ: middleZDelta.toFixed(3),
+      thumbTipY: lm[THUMB_TIP].y.toFixed(3), thumbIpY: lm[THUMB_IP].y.toFixed(3),
     })
 
-    if (firePose2P) {
+    if (firePose) {
       latchFrames = FIRE_LATCH_FRAMES
-      console.log("[handTracking 2P] FIRE — flat hand raised past midscreen")
+      console.log(`[handTracking ${label}] FIRE — hip draw complete + thumb trigger`)
     } else if (latchFrames > 0) {
       latchFrames--
     }
@@ -175,11 +117,11 @@ export function initHandTracking(
   }
 
   const computeVelocity1 = makeVelocityTracker()
-  const checkGesture1 = makeGunDrawDetector(1)
+  const checkGesture1 = makeGunDrawDetector("P1")
 
   // Second tracker and detector only allocated for 2P
   const computeVelocity2 = players === 2 ? makeVelocityTracker() : null
-  const checkGesture2 = players === 2 ? makeGunDrawDetector(1) : null
+  const checkGesture2 = players === 2 ? makeGunDrawDetector("P2") : null
 
   const hands = new window.Hands({
     locateFile: (file: string) =>
@@ -190,7 +132,10 @@ export function initHandTracking(
   // 1P stays on lite (modelComplexity: 0) — no latency regression.
   hands.setOptions({
     maxNumHands: players,
+    // 2P: full model — the lite model frequently locks onto only one hand.
+    // 1P stays on the lite model for lowest latency.
     modelComplexity: players === 2 ? 1 : 0,
+    // 2P: looser thresholds so the second hand isn't dropped on partial frames.
     minDetectionConfidence: players === 2 ? 0.5 : 0.7,
     minTrackingConfidence: players === 2 ? 0.5 : 0.6,
   })
@@ -208,9 +153,10 @@ export function initHandTracking(
         return
       }
       const lm = landmarks[0]
-      const velocity = computeVelocity1(lm[INDEX_TIP].y)
+      const wrist = lm[WRIST]
+      const velocity = computeVelocity1(wrist.y)
       const { isFiring, wasHolstered } = checkGesture1(lm)
-      const data: HandData = { x: lm[INDEX_TIP].x, y: lm[INDEX_TIP].y, velocity, isFiring, wasHolstered }
+      const data: HandData = { x: wrist.x, y: wrist.y, velocity, isFiring, wasHolstered }
       console.log("[handTracking] frame →", {
         x: data.x.toFixed(3), y: data.y.toFixed(3),
         velocity: data.velocity.toFixed(2), isFiring, wasHolstered,
@@ -219,29 +165,36 @@ export function initHandTracking(
       return
     }
 
-    // 2P: sort by wrist.x so leftmost hand on screen is always P1, rightmost is P2.
-    // MediaPipe's landmarks[] order can swap frame-to-frame at similar confidence;
-    // spatial sort keeps assignment stable as long as players don't cross arms.
-    const sorted = [...landmarks].sort((a, b) => a[WRIST].x - b[WRIST].x)
+    // 2P: assign by horizontal position — leftmost hand on screen → P1,
+    // rightmost → P2. MediaPipe's array order is unstable (it can swap when
+    // both hands are detected at similar confidence), but x-position is a
+    // physical anchor: as long as the players don't cross arms, the
+    // assignment is stable. Players know who's who by where they stand.
+    const sorted = [...landmarks].sort(
+      (a, b) => a[WRIST].x - b[WRIST].x
+    )
 
     let p1Data: HandData | null = null
     let p2Data: HandData | null = null
 
     if (sorted.length >= 1) {
       const lm1 = sorted[0]
-      const velocity1 = computeVelocity1(lm1[INDEX_TIP].y)
+      const wrist1 = lm1[WRIST]
+      const velocity1 = computeVelocity1(wrist1.y)
       const { isFiring: f1, wasHolstered: h1 } = checkGesture1(lm1)
-      p1Data = { x: lm1[INDEX_TIP].x, y: lm1[INDEX_TIP].y, velocity: velocity1, isFiring: f1, wasHolstered: h1 }
+      p1Data = { x: wrist1.x, y: wrist1.y, velocity: velocity1, isFiring: f1, wasHolstered: h1 }
     }
 
     if (sorted.length >= 2 && checkGesture2 && computeVelocity2) {
       const lm2 = sorted[1]
-      const velocity2 = computeVelocity2(lm2[INDEX_TIP].y)
+      const wrist2 = lm2[WRIST]
+      const velocity2 = computeVelocity2(wrist2.y)
       const { isFiring: f2, wasHolstered: h2 } = checkGesture2(lm2)
-      p2Data = { x: lm2[INDEX_TIP].x, y: lm2[INDEX_TIP].y, velocity: velocity2, isFiring: f2, wasHolstered: h2 }
+      p2Data = { x: wrist2.x, y: wrist2.y, velocity: velocity2, isFiring: f2, wasHolstered: h2 }
     }
 
     console.log("[handTracking 2P] frame →",
+      `count=${landmarks.length}`,
       "P1:", p1Data ? `y=${p1Data.y.toFixed(2)} fire=${p1Data.isFiring} holstered=${p1Data.wasHolstered}` : "null",
       "P2:", p2Data ? `y=${p2Data.y.toFixed(2)} fire=${p2Data.isFiring} holstered=${p2Data.wasHolstered}` : "null",
     )
